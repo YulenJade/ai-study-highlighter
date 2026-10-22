@@ -9,6 +9,8 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from .highlighter import analyze_pdf, extract_items
+from .paragraph_matcher import match_best_paragraph
+from .notion_export import append_result
 
 app = FastAPI(title="AI Study Highlighter", version="0.3.0")
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -101,3 +103,55 @@ async def highlight(pdf: UploadFile = File(...), notes: str = Form(...)):
             "X-Matched-Pages": ",".join(map(str, summary["matched_pages"])),
         },
     )
+
+
+@app.post("/paragraph/preview")
+async def paragraph_preview(pdf: UploadFile = File(...), notes: str = Form(...)):
+    """Rank source-extracted PDF text blocks and return one best paragraph."""
+    data = await read_input(pdf, notes)
+    try:
+        summary, _ = match_best_paragraph(data, notes)
+        return summary
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/paragraph/highlight")
+async def paragraph_highlight(pdf: UploadFile = File(...), notes: str = Form(...)):
+    """Highlight the top-ranked source paragraph (review the preview first)."""
+    data = await read_input(pdf, notes)
+    try:
+        summary, output = match_best_paragraph(data, notes, annotate=True)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    assert output is not None
+    return StreamingResponse(
+        BytesIO(output), media_type="application/pdf",
+        headers={
+            "Content-Disposition": 'attachment; filename="paragraph-highlighted.pdf"',
+            "X-Highlight-Matches": str(summary["match_count"]),
+            "X-Matched-Pages": ",".join(map(str, summary["matched_pages"])),
+        },
+    )
+
+@app.post("/notion/publish")
+async def notion_publish(pdf: UploadFile = File(...), notes: str = Form(...),
+                         page_id: str = Form(...), book_title: str = Form("Textbook")):
+    """Explicitly publish the verified best paragraph to an authorized Notion page."""
+    if not os.getenv("DEMO_ACCESS_TOKEN"):
+        raise HTTPException(status_code=503, detail="Configure demo authentication before enabling Notion publishing")
+    data = await read_input(pdf, notes)
+    try:
+        summary, _ = match_best_paragraph(data, notes)
+        if not summary["best_match"]:
+            raise HTTPException(status_code=422, detail="No matching paragraph")
+        return await append_result(page_id, summary, book_title)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception:
+        raise HTTPException(status_code=502, detail="Notion publish failed; check integration permission") from None
+
+
+@app.get("/paragraph/workbench", include_in_schema=False)
+def paragraph_workbench():
+    return FileResponse(STATIC_DIR / "paragraph.html", media_type="text/html", headers={"Cache-Control": "no-store"})

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Study Highlighter · Paragraph Workbench</title>
+<style>
+:root{font:16px system-ui,sans-serif;background:#f4f7fb;color:#183044}*{box-sizing:border-box}
+main{max-width:920px;margin:auto;padding:26px 16px}h1{font-size:clamp(24px,5vw,34px)}
+.card{background:white;border:1px solid #dae2eb;border-radius:15px;padding:22px;margin:18px 0;box-shadow:0 6px 18px #102a4410}
+label{display:block;font-weight:650;margin:14px 0 7px}
+textarea,input,select{width:100%;padding:12px;border:1px solid #bdcad7;border-radius:9px;font:inherit}textarea{min-height:120px}
+button{background:#205ad4;color:white;border:0;border-radius:10px;padding:11px 17px;cursor:pointer;font:inherit;margin:10px 8px 0 0}
+button:disabled{opacity:.5}select{width:auto}small,.muted{color:#63758a}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f3f6fa;padding:12px;border-radius:8px}
+iframe{width:100%;height:450px;border:1px solid #dae2eb;border-radius:10px}#error{color:#b42318}
+a{color:#205ad4}
+</style></head>
+<body><main>
+<div style="display:flex;justify-content:space-between;gap:12px;align-items:center">
+<a href="/" id="back">← 返回原版</a>
+<select id="lang"><option value="zh">中文</option><option value="en">English</option></select>
+</div>
+<h1 id="title">精准段落匹配（预览版）</h1>
+<p class="muted" id="description">上传文字型 PDF 和课堂笔记，定位最相关的一段原文。此版本不是 AI 语义匹配，也不保存书籍或连接 Notion。</p>
+<section class="card">
+<label id="pdfLabel" for="pdf">教材 PDF（上限 15 MB）</label><input id="pdf" type="file" accept=".pdf,application/pdf">
+<label id="notesLabel" for="notes">课堂笔记</label><textarea id="notes" maxlength="10000" placeholder="例如：光合作用需要光能并合成有机物"></textarea>
+<button id="analyze">查找最相关段落</button><button id="download" disabled>下载段落高亮 PDF</button>
+<p id="status" role="status"></p><p id="error" role="alert"></p>
+</section>
+<section class="card" id="results" hidden>
+<h2 id="resultTitle">最相关原文</h2>
+<p id="pageInfo"></p><pre id="matched"></pre>
+<small id="disclaimer">结果由原文词语匹配排序，请先核对是否确实对应课堂重点。</small>
+<h3 id="notionTitle">Notion 笔记同步（临时方法）</h3>
+<p class="muted" id="notionHelp">复制结果并粘贴到你的 Notion 课程笔记。自动同步需要单独配置授权。</p>
+<button id="copy">复制到 Notion</button>
+</section>
+<section class="card" id="previewCard" hidden><h2 id="previewTitle">高亮 PDF 预览</h2><iframe id="preview" title="PDF preview"></iframe></section>
+</main><script src="/static/paragraph.js" defer></script></body></html>
