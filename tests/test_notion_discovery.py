@@ -47,7 +47,7 @@ def test_discovery_only_returns_pages_in_bound_course(monkeypatch):
             return httpx.Response(200, json={"has_more": False, "results": [
                 {"id": NOTE_ID, "object": "page", "parent": {"page_id": COURSE_ID},
                  "properties": {"title": {"type": "title", "title": [{"plain_text": "课堂笔记"}]}}},
-                {"id": BOOK_ID, "object": "page", "parent": {"page_id": BOOK_ID}},
+                {"id": BOOK_ID, "object": "page", "parent": {"type": "workspace"}},
             ]}, request=httpx.Request("POST", url))
     monkeypatch.setattr("app.notion_discovery.httpx.AsyncClient", MockClient)
     result = asyncio.run(discover_notes())
