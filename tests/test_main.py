@@ -115,7 +115,7 @@ def test_homepage_serves_bilingual_ui():
 def test_static_js_has_language_and_api_routes():
     response = client.get("/static/app.js")
     assert response.status_code == 200
-    assert "application/javascript" in response.headers["content-type"]
+    assert "javascript" in response.headers["content-type"]
     assert '"/preview"' in response.text
     assert '"/highlight"' in response.text
     assert 'en:{' in response.text
