@@ -35,7 +35,7 @@ function resetMulti(){multiReady=false;$("multiDownload").disabled=true;$("multi
 $("pdf").addEventListener("change",resetMulti);
 $("notes").addEventListener("input",resetMulti);
 $("multiAnalyze").addEventListener("click",async()=>{
- if(!validate())return;
+ if(!validate()){$("multiResults").textContent=$("error").textContent;$("multiResults").scrollIntoView({behavior:"smooth",block:"nearest"});return;}
  $("multiAnalyze").disabled=true;$("multiDownload").disabled=true;$("multiResults").textContent=t("working");
  try{
   const result=await(await send("/multi/preview")).json();
@@ -43,9 +43,9 @@ $("multiAnalyze").addEventListener("click",async()=>{
   $("multiDownload").disabled=!multiReady;
   $("multiResults").textContent=result.results.map(r=>
    (r.matched?"✓ "+t("page")+" "+r.page+" · "+r.category+" · "+r.score:"✕")+
-   "\\n"+r.note+(r.matched?"\\n"+r.text:"")
-  ).join("\\n\\n");
- }catch(e){$("multiResults").textContent=e.message;}
+   "\n"+r.note+(r.matched?"\n"+r.text:"")
+  ).join("\n\n");
+ }catch(e){$("multiResults").textContent="分析失败 / Analysis failed: "+e.message;}
  finally{$("multiAnalyze").disabled=false;}
 });
 $("multiDownload").addEventListener("click",async()=>{
