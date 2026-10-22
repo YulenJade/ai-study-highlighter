@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from .highlighter import analyze_pdf, extract_items
+from .paragraph_matcher import match_best_paragraph
 
 app = FastAPI(title="AI Study Highlighter", version="0.3.0")
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -97,6 +98,36 @@ async def highlight(pdf: UploadFile = File(...), notes: str = Form(...)):
         media_type="application/pdf",
         headers={
             "Content-Disposition": 'attachment; filename="highlighted.pdf"',
+            "X-Highlight-Matches": str(summary["match_count"]),
+            "X-Matched-Pages": ",".join(map(str, summary["matched_pages"])),
+        },
+    )
+
+
+@app.post("/paragraph/preview")
+async def paragraph_preview(pdf: UploadFile = File(...), notes: str = Form(...)):
+    """Rank source-extracted PDF text blocks and return one best paragraph."""
+    data = await read_input(pdf, notes)
+    try:
+        summary, _ = match_best_paragraph(data, notes)
+        return summary
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/paragraph/highlight")
+async def paragraph_highlight(pdf: UploadFile = File(...), notes: str = Form(...)):
+    """Highlight the top-ranked source paragraph (review the preview first)."""
+    data = await read_input(pdf, notes)
+    try:
+        summary, output = match_best_paragraph(data, notes, annotate=True)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    assert output is not None
+    return StreamingResponse(
+        BytesIO(output), media_type="application/pdf",
+        headers={
+            "Content-Disposition": 'attachment; filename="paragraph-highlighted.pdf"',
             "X-Highlight-Matches": str(summary["match_count"]),
             "X-Matched-Pages": ",".join(map(str, summary["matched_pages"])),
         },
