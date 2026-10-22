@@ -2,7 +2,7 @@
 
 > Verified PDF passage highlighting from study notes. / 根据笔记定位 PDF 真实原文并生成高亮副本。
 
-**V0.2: local prototype, not a hosted AI service. / V0.2：本地原型，尚非线上 AI 服务。**
+**V0.3: local bilingual web prototype, not a hosted AI service. / V0.3：本地中英双语网页原型，尚非线上 AI 服务。**
 
 ## Features / 功能
 - Chinese and English **literal** text search in text-based PDFs / 支持文字型 PDF 的中英文原文搜索
@@ -28,7 +28,11 @@ Windows activation: `.venv\Scripts\activate`.
 
 Visit `http://127.0.0.1:8000/docs` for interactive API documentation.
 
-## Preview / 预览
+## Web UI / 网页界面
+
+Run the server locally, then open **http://127.0.0.1:8000/**. Choose Chinese or English, upload a text-based PDF, paste one exact phrase per line, click Analyze, inspect matching pages and categories, then click Download. The generated PDF is also loaded into an embedded browser viewer where supported. / 启动本地服务后打开首页，选择语言、上传教材、输入笔记、预览匹配结果并下载高亮 PDF。
+
+## API Preview / 接口预览
 ```bash
 curl -X POST http://127.0.0.1:8000/preview \
   -F "pdf=@book.pdf" \
