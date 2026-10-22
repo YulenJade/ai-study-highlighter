@@ -30,14 +30,22 @@ button.secondary{background:#e9effb;color:#183b79}button:disabled{opacity:.5;cur
 </head>
 <body>
 <main>
-<header><span class="pill">V0.3 · Local prototype</span><select id="language" aria-label="Language" style="width:auto"><option value="zh">中文</option><option value="en">English</option></select></header>
+<header><span class="pill" id="modeBadge">V0.4</span><select id="language" aria-label="Language" style="width:auto"><option value="zh">中文</option><option value="en">English</option></select></header>
 <h1 data-i18n="title">AI 教材划重点</h1>
 <p class="muted" data-i18n="subtitle">上传可提取文字的教材 PDF，输入课堂笔记，预览匹配页码并下载彩色高亮副本。</p>
 <div class="grid">
 <section class="card">
 <h2 data-i18n="inputTitle">开始处理</h2>
 <label for="pdf" data-i18n="upload">教材 PDF（最大 15 MB）</label>
-<input id="pdf" type="file" accept=".pdf,application/pdf">
+<input id="pdf" type="file" accept=".pdf,.docx,.pptx,.txt,.md">
+<div id="libraryPanel" hidden>
+<label for="books">私有书库 / Private library</label>
+<select id="books"><option value="">本次上传 / New upload</option></select>
+<p id="quota" class="muted small"></p>
+<div class="actions"><button id="saveBook">保存到书库 / Save</button><button id="refreshBooks" class="secondary">刷新 / Refresh</button><button id="deleteBook" class="secondary">删除所选 / Delete</button></div>
+</div>
+<div class="actions"><button id="extractText" class="secondary">提取文字 / Extract text</button></div>
+<pre id="extracted" style="white-space:pre-wrap;max-height:300px;overflow:auto"></pre>
 <label for="notes" data-i18n="notesLabel">课堂笔记（每行一个原文短语）</label>
 <textarea id="notes" maxlength="10000" placeholder="[重点] 光合作用&#10;[定义] 叶绿素&#10;[补充] 呼吸作用"></textarea>
 <div class="legend" aria-label="Color legend"><span><i class="dot key"></i><span data-i18n="key">重点</span></span><span><i class="dot definition"></i><span data-i18n="definition">定义</span></span><span><i class="dot extra"></i><span data-i18n="extra">补充</span></span></div>

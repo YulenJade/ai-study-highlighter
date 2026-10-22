@@ -4,7 +4,7 @@ import re
 
 import fitz
 
-MAX_PAGES = 300
+MAX_PAGES = 2000
 MAX_TERMS = 40
 MAX_MATCHES = 1000
 

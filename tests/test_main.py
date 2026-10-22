@@ -40,7 +40,7 @@ def test_terms():
 
 
 def test_health():
-    assert client.get("/health").json()["version"] == "0.3.0"
+    assert client.get("/health").json()["version"] == "0.4.0"
 
 
 def test_highlight():
