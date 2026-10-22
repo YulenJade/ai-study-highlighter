@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import math
 import os
-from collections import Counter
 
 import fitz
 import httpx
@@ -27,14 +26,29 @@ def cosine(a: list[float], b: list[float]) -> float:
 
 
 def _shortlist(paragraphs: list[dict], notes: str) -> list[dict]:
-    """Cap provider cost, but include blocks without shared words for paraphrases."""
+    """Combine lexical recall with coverage across the entire PDF.
+
+    A long textbook cannot be exhaustively embedded per request under this
+    cost limit. Reserve 40 slots for evenly distributed paragraphs so sections
+    with no shared terms still have some chance of being retrieved.
+    """
     if len(paragraphs) <= MAX_SEMANTIC_BLOCKS:
         return paragraphs
     query = set(_terms(notes))
     ranked = sorted(enumerate(paragraphs), key=lambda pair:
                     (-len(query.intersection(_terms(pair[1]["text"]))), pair[0]))
-    # Lexical shortlist is a recall trade-off on long books, not a semantic guarantee.
-    return [p for _, p in ranked[:MAX_SEMANTIC_BLOCKS]]
+    lexical_slots = MAX_SEMANTIC_BLOCKS - 40
+    selected = {i for i, _ in ranked[:lexical_slots]}
+    total = len(paragraphs)
+    for n in range(40):
+        index = round((n + 0.5) * total / 40 - 0.5)
+        selected.add(min(total - 1, max(0, index)))
+    if len(selected) < MAX_SEMANTIC_BLOCKS:
+        for i, _ in ranked:
+            selected.add(i)
+            if len(selected) == MAX_SEMANTIC_BLOCKS:
+                break
+    return [paragraphs[i] for i in sorted(selected)][:MAX_SEMANTIC_BLOCKS]
 
 
 async def _embeddings(texts: list[str]) -> list[list[float]]:
