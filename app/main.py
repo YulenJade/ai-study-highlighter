@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from .highlighter import analyze_pdf, extract_items
 from .paragraph_matcher import match_best_paragraph
 from .multi_matcher import match_multiple
+from .semantic_matcher import semantic_candidates, highlight_selected
 from .notion_export import append_result, append_multi_result
 
 app = FastAPI(title="AI Study Highlighter", version="0.3.0")
@@ -213,3 +214,47 @@ async def multi_notion_publish(pdf: UploadFile = File(...), notes: str = Form(..
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception:
         raise HTTPException(status_code=502, detail="Notion publish failed; check permissions") from None
+
+
+@app.post("/semantic/preview")
+async def semantic_preview(pdf: UploadFile = File(...), notes: str = Form(...),
+                           consent: bool = Form(False)):
+    """Opt-in: extracted PDF passages are sent to the embeddings provider."""
+    if not consent:
+        raise HTTPException(status_code=422, detail="Explicit consent to send text to embedding provider is required")
+    if not os.getenv("OPENAI_API_KEY"):
+        raise HTTPException(status_code=503, detail="Semantic matching requires a server-side API key")
+    data = await read_input(pdf, notes)
+    try:
+        return await semantic_candidates(data, notes)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception:
+        raise HTTPException(status_code=502, detail="Embedding provider unavailable") from None
+
+
+@app.post("/semantic/highlight")
+async def semantic_highlight(pdf: UploadFile = File(...), notes: str = Form(...),
+                             candidate_id: int = Form(...), consent: bool = Form(False)):
+    """Recompute candidate server-side; never trust client rectangles or text."""
+    if not consent:
+        raise HTTPException(status_code=422, detail="Consent required")
+    if not os.getenv("OPENAI_API_KEY"):
+        raise HTTPException(status_code=503, detail="Semantic matching requires a server-side API key")
+    if not 0 <= candidate_id < 5:
+        raise HTTPException(status_code=422, detail="Invalid candidate selection")
+    data = await read_input(pdf, notes)
+    try:
+        summary = await semantic_candidates(data, notes)
+        candidates = summary["candidates"]
+        if candidate_id >= len(candidates):
+            raise HTTPException(status_code=422, detail="Candidate does not exist")
+        output = highlight_selected(data, candidates[candidate_id])
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=502, detail="Semantic highlight failed") from None
+    return StreamingResponse(BytesIO(output), media_type="application/pdf",
+                             headers={"Content-Disposition": 'attachment; filename="semantic-selected.pdf"'})
