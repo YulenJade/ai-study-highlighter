@@ -13,6 +13,7 @@ from .notion_notes_readonly import _clean_id, extract_summary_blocks, NOTION_VER
 from .paragraph_matcher import match_best_paragraph
 from .pdf_crops import crop_candidate
 from .v07a_note_sections import extract_matching_notes
+from .notion_discovery import parse_course_bindings, resolve_course
 
 PDF_MAX_BYTES = 15 * 1024 * 1024
 
@@ -44,10 +45,16 @@ async def inspect_bound_course(candidate_index: int | None = None) -> dict | tup
     expected_course = os.getenv("NOTION_TEST_COURSE", "").strip()
     if not token or not expected_course:
         raise ValueError("Configure integration token and expected course")
+    bindings = parse_course_bindings(os.getenv("NOTION_COURSE_BINDINGS_JSON", ""))
+    if expected_course not in bindings or bindings[expected_course]["textbook_page_id"] != textbook_id:
+        raise ValueError("Configured course and textbook do not match explicit course bindings")
     headers = {"Authorization": f"Bearer {token}", "Notion-Version": NOTION_VERSION}
     async with httpx.AsyncClient(timeout=25, follow_redirects=False) as client:
         note_page = await client.get(f"https://api.notion.com/v1/pages/{note_id}", headers=headers)
         note_page.raise_for_status()
+        note_course = await resolve_course(note_page.json(), client, headers, bindings)
+        if note_course != expected_course:
+            raise ValueError("Note is not under the configured course root")
         textbook = await client.get(f"https://api.notion.com/v1/pages/{textbook_id}", headers=headers)
         textbook.raise_for_status()
         props = textbook.json().get("properties", {})
