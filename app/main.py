@@ -1,74 +1,68 @@
-"""Local-only PDF highlighting MVP. Do not deploy publicly without authentication and resource controls."""
+"""Local-only development API; do not expose publicly without security controls."""
 from io import BytesIO
-import re
 
-import fitz
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 
-app = FastAPI(title="AI Study Highlighter", version="0.1.0")
+from .highlighter import analyze_pdf, extract_items
+
+app = FastAPI(title="AI Study Highlighter", version="0.2.0")
 MAX_BYTES = 15 * 1024 * 1024
-MAX_PAGES = 300
-MAX_TERMS = 40
+MAX_NOTES = 10_000
 
 
 def extract_terms(notes: str) -> list[str]:
-    """Each nonempty line is a literal search phrase (not semantic AI matching)."""
-    terms = []
-    for line in notes.splitlines():
-        term = re.sub(r"^\s*(?:[-*•]|\d+[.)、])\s*", "", line).strip()
-        if len(term) >= 2 and term not in terms:
-            terms.append(term[:200])
-    return terms[:MAX_TERMS]
+    """Backward-compatible V0.1 helper."""
+    return [item.text for item in extract_items(notes)]
 
 
 def highlight_pdf(data: bytes, notes: str) -> tuple[bytes, int]:
-    if not data.startswith(b"%PDF-"):
-        raise ValueError("Not a PDF file")
-    terms = extract_terms(notes)
-    if not terms:
-        raise ValueError("Provide at least one note phrase (2+ characters)")
-    doc = fitz.open(stream=data, filetype="pdf")
-    try:
-        if doc.page_count > MAX_PAGES:
-            raise ValueError("PDF exceeds page limit")
-        count = 0
-        for page in doc:
-            for term in terms:
-                for rect in page.search_for(term, quads=True):
-                    annot = page.add_highlight_annot(rect)
-                    annot.update()
-                    count += 1
-        result = doc.tobytes(garbage=4, deflate=True)
-        return result, count
-    finally:
-        doc.close()
+    summary, output = analyze_pdf(data, notes, annotate=True)
+    assert output is not None
+    return output, summary["match_count"]
 
 
-@app.get("/health")
-def health():
-    return {"status": "ok"}
-
-
-@app.post("/highlight")
-async def highlight(pdf: UploadFile = File(...), notes: str = Form(...)):
+async def read_input(pdf: UploadFile, notes: str) -> bytes:
     if not pdf.filename or not pdf.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Please upload a .pdf file")
+    if len(notes) > MAX_NOTES:
+        raise HTTPException(status_code=400, detail="Notes too long")
     data = await pdf.read(MAX_BYTES + 1)
     await pdf.close()
     if len(data) > MAX_BYTES:
         raise HTTPException(status_code=413, detail="PDF too large")
-    if len(notes) > 10_000:
-        raise HTTPException(status_code=400, detail="Notes too long")
+    return data
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "version": "0.2.0"}
+
+
+@app.post("/preview")
+async def preview(pdf: UploadFile = File(...), notes: str = Form(...)):
+    data = await read_input(pdf, notes)
     try:
-        output, matches = highlight_pdf(data, notes)
-    except (ValueError, RuntimeError, fitz.FileDataError) as exc:
+        summary, _ = analyze_pdf(data, notes)
+        return summary
+    except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/highlight")
+async def highlight(pdf: UploadFile = File(...), notes: str = Form(...)):
+    data = await read_input(pdf, notes)
+    try:
+        summary, output = analyze_pdf(data, notes, annotate=True)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    assert output is not None
     return StreamingResponse(
         BytesIO(output),
         media_type="application/pdf",
         headers={
             "Content-Disposition": 'attachment; filename="highlighted.pdf"',
-            "X-Highlight-Matches": str(matches),
+            "X-Highlight-Matches": str(summary["match_count"]),
+            "X-Matched-Pages": ",".join(map(str, summary["matched_pages"])),
         },
     )
