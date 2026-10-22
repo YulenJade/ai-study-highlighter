@@ -45,8 +45,8 @@ async def append_result(page_id: str, summary: dict, book_title: str = "Textbook
 def multi_result_blocks(summary: dict, book_title: str, selected_indices: list[int]) -> list[dict]:
     """Build Notion blocks only for explicitly selected, source-backed matches."""
     results = summary.get("results", [])
-    if not selected_indices or len(selected_indices) > 40:
-        raise ValueError("Select between 1 and 40 matching paragraphs")
+    if not selected_indices or len(selected_indices) > 30:
+        raise ValueError("Select between 1 and 30 matching paragraphs")
     if len(set(selected_indices)) != len(selected_indices):
         raise ValueError("Duplicate selection")
     if any(type(i) is not int or i < 0 or i >= len(results) for i in selected_indices):
