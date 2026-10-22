@@ -76,3 +76,16 @@ def test_bound_course_preview_and_png(monkeypatch):
     assert result["selected_candidate"]["page"] == 1
     assert png.startswith(bytes.fromhex("89504e470d0a1a0a"))
     assert all(method == "GET" for method, _ in calls)
+
+
+def test_bound_course_rejects_wrong_course_binding(monkeypatch):
+    monkeypatch.setenv("NOTION_INTEGRATION_TOKEN", "fake-test-token")
+    monkeypatch.setenv("NOTION_TEST_NOTE_PAGE_ID", NOTE_ID)
+    monkeypatch.setenv("NOTION_TEST_TEXTBOOK_PAGE_ID", BOOK_ID)
+    monkeypatch.setenv("NOTION_TEST_COURSE", "园林苗圃学")
+    monkeypatch.setenv("NOTION_COURSE_BINDINGS_JSON", json.dumps({
+        "园林植物病虫害防治": {"course_page_id": COURSE_ID, "textbook_page_id": BOOK_ID}
+    }))
+    import pytest
+    with pytest.raises(ValueError, match="course and textbook"):
+        asyncio.run(inspect_bound_course())
