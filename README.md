@@ -2,7 +2,7 @@
 
 > Verified PDF passage highlighting from study notes. / 根据笔记定位 PDF 真实原文并生成高亮副本。
 
-**V0.3: local bilingual web prototype, not a hosted AI service. / V0.3：本地中英双语网页原型，尚非线上 AI 服务。**
+**V0.7a deployed on Render (2026-10-22). Notion-linked course preview is experimental and currently returns HTTP 502 in live testing. / V0.7a 已部署 Render，Notion 课程联合预览真实测试仍返回 502，尚未验收。**
 
 ## Features / 功能
 - Chinese and English **literal** text search in text-based PDFs / 支持文字型 PDF 的中英文原文搜索
@@ -50,10 +50,19 @@ curl -X POST http://127.0.0.1:8000/highlight \
 
 ## Deploy a private demo / 部署密码保护的演示版
 
-Docker and Render Blueprint files are included. Follow [deployment instructions / 部署教程](docs/DEPLOYMENT.md). A hosted instance is **not** live yet; connect a hosting account and set the `DEMO_ACCESS_TOKEN` secret yourself. / 已准备 Docker 与 Render 配置，但尚未实际部署，需在托管平台设置密码密钥。
+Docker and Render Blueprint files are included. Follow [deployment instructions / 部署教程](docs/DEPLOYMENT.md). A hosted demo is live at **https://ai-study-highlighter-demo.onrender.com/**. Protected routes require the server-side `DEMO_ACCESS_TOKEN`; do not commit it. / Render 演示网站已上线，受保护接口需要服务器端密钥。
 
 ## Security / 安全
-**Local development only. Do not expose to the Internet.** No authentication, user isolation, malware scanning, or rate limiting. PDF parsing consumes resources; file-size limits alone do not guarantee safety. Do not commit textbooks, personal notes, credentials or customer data. Only process PDFs you have the rights to use. / 仅用于本地开发，未经鉴权与安全加固不得公网开放。
+**Prototype deployment only, not production-ready for public multi-user uploads.** The hosted demo uses access protection, but user isolation, comprehensive malware scanning and rate limiting have not been fully validated. PDF parsing consumes resources; size limits alone do not guarantee safety. Do not commit textbooks, notes, credentials or customer data. Only process PDFs you have the rights to use. / 当前为受保护演示站，不具备完整多租户安全验收；请勿上传无权处理的教材或提交私密信息。
+
+## Current status / 当前进度（2026-10-22）
+
+- **Deployed / 已上线**: bilingual text-PDF workflow, literal matching, color-coded highlights, annotated PDF export, manual paragraph candidate/crop review UI.
+- **Implemented, not live-verified / 已实现但未完成真实验收**: read-only Notion course discovery, course-bound PDF candidate preview and PNG crop endpoints. Mocked Notion → PDF → PNG integration tests passed.
+- **Live blocker / 线上阻塞**: `GET /v07a/course/preview` returned **HTTP 502** during real Notion integration testing. Stage-specific error diagnostics were committed as `c76ce280`; confirm CI/deployment and retry before claiming this feature works.
+- **Not implemented / 未完成**: Notion OAuth, unattended Notion write-back, native AI Meeting Notes full-text support, OCR, semantic AI matching, multi-user subscriptions.
+- **Resume / 下次继续**: verify diagnostics deploy → reproduce 502 → inspect Notion integration permissions, note ancestry, textbook properties and signed PDF download → confirm genuine PNG crops. Keep Notion write-back disabled.
+- **Links**: [Live demo / 演示网站](https://ai-study-highlighter-demo.onrender.com/) · [V0.7a PR](https://github.com/YulenJade/ai-study-highlighter/pull/10) · [Staging acceptance notes](docs/v07a-staging-acceptance.md).
 
 ## Docs / 文档
 [PRD](docs/PRD.md) · [Architecture](docs/ARCHITECTURE.md) · [Roadmap](docs/ROADMAP.md)
