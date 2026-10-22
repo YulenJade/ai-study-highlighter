@@ -12,6 +12,10 @@ from fastapi.staticfiles import StaticFiles
 from .highlighter import analyze_pdf, extract_items
 from .paragraph_matcher import match_best_paragraph
 from .multi_matcher import match_multiple
+from .pdf_crops import crop_candidate
+from .notion_notes_readonly import inspect_configured_note
+from .v07a_course_preview import inspect_bound_course
+from .notion_discovery import discover_notes
 from .notion_export import append_result, append_multi_result
 
 app = FastAPI(title="AI Study Highlighter", version="0.3.0")
@@ -213,3 +217,90 @@ async def multi_notion_publish(pdf: UploadFile = File(...), notes: str = Form(..
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception:
         raise HTTPException(status_code=502, detail="Notion publish failed; check permissions") from None
+
+
+@app.post("/v07a/candidates")
+async def v07a_candidates(pdf: UploadFile = File(...), notes: str = Form(...)):
+    """Read-only candidate preview. PDF is not stored or sent to Notion."""
+    data = await read_input(pdf, notes)
+    try:
+        summary, _ = match_best_paragraph(data, notes)
+        return {"candidates": summary["candidates"], "page_count": summary["page_count"],
+                "matching_method": summary["matching_method"],
+                "requires_confirmation": True, "notion_write_enabled": False}
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/v07a/crop")
+async def v07a_crop(pdf: UploadFile = File(...), notes: str = Form(...),
+                    candidate_index: int = Form(...)):
+    """Render only a server-recomputed source PDF paragraph; no Notion writes."""
+    data = await read_input(pdf, notes)
+    try:
+        meta, png = crop_candidate(data, notes, candidate_index)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return StreamingResponse(BytesIO(png), media_type="image/png",
+                             headers={"Cache-Control": "no-store",
+                                      "X-PDF-Page": str(meta["page"]),
+                                      "X-Candidate-Index": str(meta["candidate_index"])})
+
+
+@app.get("/v07a/notion/inspect")
+async def v07a_notion_inspect():
+    """Read-only probe of one explicitly configured Notion note, never write."""
+    if not os.getenv("DEMO_ACCESS_TOKEN"):
+        raise HTTPException(status_code=503, detail="Demo authentication must be configured")
+    try:
+        return await inspect_configured_note()
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception:
+        raise HTTPException(status_code=502,
+                            detail="Notion note inspection failed; verify integration access") from None
+
+
+@app.get("/v07a/course/preview")
+async def v07a_course_preview():
+    """Opt-in, authenticated, read-only configured course textbook preview."""
+    if not os.getenv("DEMO_ACCESS_TOKEN"):
+        raise HTTPException(status_code=503, detail="Demo authentication must be configured")
+    try:
+        return await inspect_bound_course()
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception:
+        raise HTTPException(status_code=502, detail="Notion course preview failed; verify access and file") from None
+
+
+@app.get("/v07a/notion/discover")
+async def v07a_notion_discover():
+    """Discover shared pages under configured course roots, without writes."""
+    if not os.getenv("DEMO_ACCESS_TOKEN"):
+        raise HTTPException(status_code=503, detail="Demo authentication must be configured")
+    try:
+        return await discover_notes()
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception:
+        raise HTTPException(status_code=502, detail="Notion discovery failed; verify integration permissions") from None
+
+
+@app.get("/v07a/course/crop/{candidate_index}")
+async def v07a_course_crop(candidate_index: int):
+    """Render a Notion-bound PDF source crop on demand; never write to Notion."""
+    if not os.getenv("DEMO_ACCESS_TOKEN"):
+        raise HTTPException(status_code=503, detail="Demo authentication must be configured")
+    if not 0 <= candidate_index <= 4:
+        raise HTTPException(status_code=422, detail="Candidate index must be between 0 and 4")
+    try:
+        meta, png = await inspect_bound_course(candidate_index=candidate_index)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception:
+        raise HTTPException(status_code=502, detail="Notion PDF crop failed; verify integration access") from None
+    return StreamingResponse(BytesIO(png), media_type="image/png",
+                             headers={"Cache-Control": "no-store",
+                                      "X-PDF-Page": str(meta["selected_candidate"]["page"]),
+                                      "X-Candidate-Index": str(candidate_index)})

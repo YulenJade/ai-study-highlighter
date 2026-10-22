@@ -91,3 +91,83 @@ $("batchPublish").addEventListener("click",async()=>{
   $("batchConfirm").checked=false;document.querySelectorAll(".batchChoice").forEach(c=>c.checked=false);
  }catch(e){$("batchStatus").textContent="Notion: "+e.message;}finally{updateBatch();}
 });
+
+let cropUrl=null,cropGeneration=0;
+function resetCrops(){cropGeneration++;$("cropCandidates").replaceChildren();$("cropPreview").replaceChildren();$("cropStatus").textContent="";if(cropUrl){URL.revokeObjectURL(cropUrl);cropUrl=null;}}
+$("pdf").addEventListener("change",resetCrops);
+$("notes").addEventListener("input",resetCrops);
+$("cropAnalyze").addEventListener("click",async()=>{
+ if(!validate()){$("cropStatus").textContent=$("error").textContent;return;}
+ resetCrops();const generation=cropGeneration;$("cropAnalyze").disabled=true;$("cropStatus").textContent="正在查找原文候选…";
+ try{
+  const response=await fetch("/v07a/candidates",{method:"POST",body:payload()});
+  if(!response.ok)throw Error("查找失败 HTTP "+response.status);
+  const result=await response.json();if(generation!==cropGeneration)return;
+  $("cropStatus").textContent="找到 "+result.candidates.length+" 个候选。词语匹配结果仅供人工核对。";
+  result.candidates.forEach((c,i)=>{
+   const btn=document.createElement("button");btn.textContent="查看第 "+c.page+" 页候选 "+(i+1)+" 的截图";
+   btn.addEventListener("click",async()=>{
+    const form=payload();form.append("candidate_index",String(i));btn.disabled=true;
+    try{
+     const r=await fetch("/v07a/crop",{method:"POST",body:form});
+     if(!r.ok)throw Error("截图失败 HTTP "+r.status);
+     const blob=await r.blob();if(generation!==cropGeneration)return;
+     if(cropUrl)URL.revokeObjectURL(cropUrl);cropUrl=URL.createObjectURL(blob);
+     const img=document.createElement("img");img.src=cropUrl;img.alt="教材第 "+c.page+" 页的实际 PDF 段落截图";img.style.cssText="max-width:100%;height:auto;border:1px solid #dae2eb;border-radius:8px";
+     const title=document.createElement("p");title.textContent="PDF 第 "+c.page+" 页 · 词语匹配分数 "+c.score+" · 请人工核对";
+     const link=document.createElement("a");link.href=cropUrl;link.download="textbook-page-"+c.page+"-crop.png";link.textContent="下载截图 PNG";
+     $("cropPreview").replaceChildren(title,img,link);
+    }catch(e){$("cropStatus").textContent=e.message;}finally{btn.disabled=false;}
+   });$("cropCandidates").append(btn);
+  });
+ }catch(e){if(generation===cropGeneration)$("cropStatus").textContent=e.message;}
+ finally{$("cropAnalyze").disabled=false;}
+});
+
+$("discoverNotes").addEventListener("click",async()=>{
+ const btn=$("discoverNotes"),holder=$("discoveredNotes");
+ btn.disabled=true;holder.replaceChildren();$("discoverStatus").textContent="正在读取已授权的课程页面…";
+ try{
+  const r=await fetch("/v07a/notion/discover");
+  if(!r.ok){let msg="HTTP "+r.status;try{msg=(await r.json()).detail||msg;}catch{}throw Error(msg);}
+  const data=await r.json();
+  $("discoverStatus").textContent="已扫描 "+data.pages_scanned+" 个页面；课程候选 "+data.notes.length+" 个"+(data.incomplete?"（仅部分结果）":"")+"。请人工确认哪些是 AI 课堂笔记。";
+  data.notes.forEach(item=>{
+   const p=document.createElement("p"),a=document.createElement("a");
+   a.href="https://www.notion.so/"+item.page_id;a.target="_blank";a.rel="noopener noreferrer";
+   a.textContent=item.title||"未命名页面";
+   p.append(document.createTextNode(item.course+" · "),a);
+   holder.append(p);
+  });
+ }catch(e){$("discoverStatus").textContent="扫描失败："+e.message;}
+ finally{btn.disabled=false;}
+});
+
+$("boundPreview").addEventListener("click",async()=>{
+ const btn=$("boundPreview"),status=$("boundStatus"),list=$("boundCandidates"),image=$("boundImage");
+ btn.disabled=true;list.replaceChildren();image.replaceChildren();status.textContent="正在从 Notion 读取课程笔记和 PDF…";
+ try{
+  const response=await fetch("/v07a/course/preview",{cache:"no-store"});
+  if(!response.ok){let message="HTTP "+response.status;try{message=(await response.json()).detail||message;}catch{}throw Error(message);}
+  const data=await response.json();
+  status.textContent=data.course+" · "+data.textbook+" · PDF "+data.pdf_page_count+" 页 · 候选 "+data.candidates.length+" 个（请人工核对）";
+  data.candidates.forEach((candidate,i)=>{
+   const p=document.createElement("p"),b=document.createElement("button");
+   b.textContent="查看第 "+candidate.page+" 页候选 "+(i+1)+" 截图";
+   b.addEventListener("click",async()=>{
+    b.disabled=true;image.replaceChildren();
+    try{
+     const r=await fetch("/v07a/course/crop/"+i,{cache:"no-store"});
+     if(!r.ok)throw Error("截图接口返回 HTTP "+r.status);
+     const url=URL.createObjectURL(await r.blob()),img=document.createElement("img");
+     img.src=url;img.alt="PDF 第 "+candidate.page+" 页原文候选截图";img.style.maxWidth="100%";
+     img.onload=()=>URL.revokeObjectURL(url);
+     image.append(img);
+    }catch(e){image.textContent="截图失败："+e.message;}finally{b.disabled=false;}
+   });
+   p.append(b,document.createTextNode(" 词语匹配分数 "+candidate.score+"；"+candidate.text.slice(0,160)));
+   list.append(p);
+  });
+ }catch(e){status.textContent="读取失败："+e.message;}
+ finally{btn.disabled=false;}
+});
