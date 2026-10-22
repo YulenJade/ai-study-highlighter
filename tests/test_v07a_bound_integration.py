@@ -3,7 +3,7 @@
 No live credentials, no network, no Notion writes.
 """
 import asyncio
-import io
+import json
 
 import fitz
 import httpx
@@ -13,6 +13,8 @@ from app.v07a_course_preview import inspect_bound_course
 
 NOTE_ID = "4015440836d5817cbd6df5c01fc8d876"
 BOOK_ID = "4015440836d5804380dfd3be8e7c2b2e"
+COURSE_ID = "4005440836d58138b8eee61483667132"
+FOLDER_ID = "4005440836d581949082c8e78ebb0cfd"
 
 
 def make_pdf():
@@ -30,6 +32,7 @@ def test_bound_course_preview_and_png(monkeypatch):
     monkeypatch.setenv("NOTION_TEST_NOTE_PAGE_ID", NOTE_ID)
     monkeypatch.setenv("NOTION_TEST_TEXTBOOK_PAGE_ID", BOOK_ID)
     monkeypatch.setenv("NOTION_TEST_COURSE", "园林苗圃学")
+    monkeypatch.setenv("NOTION_COURSE_BINDINGS_JSON", json.dumps({"园林苗圃学": {"course_page_id": COURSE_ID, "textbook_page_id": BOOK_ID}}))
     pdf = make_pdf()
     file_url = "https://secure.notion-static.com/example.pdf"
     calls = []
@@ -38,7 +41,9 @@ def test_bound_course_preview_and_png(monkeypatch):
         calls.append((request.method, str(request.url)))
         path = request.url.path
         if path.endswith(NOTE_ID) and "/pages/" in path:
-            return httpx.Response(200, json={"id": NOTE_ID, "last_edited_time": "2026-10-22T00:00:00Z"})
+            return httpx.Response(200, json={"id": NOTE_ID, "parent": {"page_id": FOLDER_ID}, "last_edited_time": "2026-10-22T00:00:00Z"})
+        if path.endswith(FOLDER_ID) and "/pages/" in path:
+            return httpx.Response(200, json={"id": FOLDER_ID, "parent": {"page_id": COURSE_ID}})
         if path.endswith(BOOK_ID) and "/pages/" in path:
             return httpx.Response(200, json={"properties": {
                 "教材名称": {"title": [{"plain_text": "重庆市某苗圃苗木管护计划"}]},
