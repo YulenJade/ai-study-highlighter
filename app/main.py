@@ -150,3 +150,8 @@ async def notion_publish(pdf: UploadFile = File(...), notes: str = Form(...),
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception:
         raise HTTPException(status_code=502, detail="Notion publish failed; check integration permission") from None
+
+
+@app.get("/paragraph/workbench", include_in_schema=False)
+def paragraph_workbench():
+    return FileResponse(STATIC_DIR / "paragraph.html", media_type="text/html", headers={"Cache-Control": "no-store"})
