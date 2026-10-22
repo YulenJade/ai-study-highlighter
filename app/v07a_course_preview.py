@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 
 from .notion_notes_readonly import _clean_id, extract_summary_blocks, NOTION_VERSION
 from .paragraph_matcher import match_best_paragraph
+from .pdf_crops import crop_candidate
 from .v07a_note_sections import extract_matching_notes
 
 PDF_MAX_BYTES = 15 * 1024 * 1024
@@ -36,7 +37,7 @@ def _file_url(prop: dict) -> str:
     return url
 
 
-async def inspect_bound_course() -> dict:
+async def inspect_bound_course(candidate_index: int | None = None) -> dict | tuple[dict, bytes]:
     token = os.getenv("NOTION_INTEGRATION_TOKEN", "").strip()
     note_id = _clean_id(os.getenv("NOTION_TEST_NOTE_PAGE_ID", ""))
     textbook_id = _clean_id(os.getenv("NOTION_TEST_TEXTBOOK_PAGE_ID", ""))
@@ -81,7 +82,7 @@ async def inspect_bound_course() -> dict:
     if not pdf.startswith(b"%PDF-"):
         raise ValueError("Not a PDF file")
     summary, _ = match_best_paragraph(pdf, notes_text)
-    return {
+    result = {
         "note_page_id": note_id,
         "textbook_page_id": textbook_id,
         "course": course,
@@ -95,3 +96,7 @@ async def inspect_bound_course() -> dict:
         "notion_write_enabled": False,
         "warning": "Read-only preview. Full AI Meeting Notes may not be exposed as top-level blocks.",
     }
+    if candidate_index is None:
+        return result
+    meta, png = crop_candidate(pdf, notes_text, candidate_index)
+    return {**result, "selected_candidate": meta}, png
