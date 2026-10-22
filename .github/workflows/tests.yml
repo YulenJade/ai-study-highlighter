@@ -49,7 +49,7 @@ jobs:
         run: |
           docker run -d --name test-minio -p 9000:9000 \
             -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin \
-            minio/minio:RELEASE.2025-04-22T22-12-26Z server /data
+            quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z server /data
           for attempt in $(seq 1 30); do
             if curl -fsS http://localhost:9000/minio/health/live; then exit 0; fi
             sleep 2
