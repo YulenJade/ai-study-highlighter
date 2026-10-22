@@ -48,6 +48,10 @@ curl -X POST http://127.0.0.1:8000/highlight \
   -o highlighted.pdf
 ```
 
+## Deploy a private demo / 部署密码保护的演示版
+
+Docker and Render Blueprint files are included. Follow [deployment instructions / 部署教程](docs/DEPLOYMENT.md). A hosted instance is **not** live yet; connect a hosting account and set the `DEMO_ACCESS_TOKEN` secret yourself. / 已准备 Docker 与 Render 配置，但尚未实际部署，需在托管平台设置密码密钥。
+
 ## Security / 安全
 **Local development only. Do not expose to the Internet.** No authentication, user isolation, malware scanning, or rate limiting. PDF parsing consumes resources; file-size limits alone do not guarantee safety. Do not commit textbooks, personal notes, credentials or customer data. Only process PDFs you have the rights to use. / 仅用于本地开发，未经鉴权与安全加固不得公网开放。
 
