@@ -40,7 +40,7 @@ def test_terms():
 
 
 def test_health():
-    assert client.get("/health").json()["version"] == "0.2.0"
+    assert client.get("/health").json()["version"] == "0.3.0"
 
 
 def test_highlight():
@@ -97,3 +97,39 @@ def test_chinese_pdf_when_font_available():
                            data={"notes": "[重点] 植物光合作用"})
     assert response.status_code == 200
     assert response.json()["match_count"] >= 1
+
+
+def test_homepage_serves_bilingual_ui():
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert 'lang="zh-CN"' in response.text
+    assert "AI 教材划重点" in response.text
+    assert 'id="pdf"' in response.text
+    assert 'id="notes"' in response.text
+    assert 'id="analyze"' in response.text
+    assert 'id="download"' in response.text
+    assert 'id="pdfPreview"' in response.text
+
+
+def test_static_js_has_language_and_api_routes():
+    response = client.get("/static/app.js")
+    assert response.status_code == 200
+    assert "application/javascript" in response.headers["content-type"]
+    assert '"/preview"' in response.text
+    assert '"/highlight"' in response.text
+    assert 'en:{' in response.text
+    assert 'zh:{' in response.text
+
+
+def test_ui_does_not_inject_pdf_text_as_html():
+    response = client.get("/static/app.js")
+    assert response.status_code == 200
+    assert "text.textContent=m.text" in response.text
+    assert "ul.replaceChildren()" in response.text
+
+
+def test_ui_invalid_pdf_rejected_by_backend():
+    response = client.post("/preview", files={"pdf": ("fake.pdf", b"not pdf", "application/pdf")},
+                           data={"notes": "[重点] test"})
+    assert response.status_code == 422
