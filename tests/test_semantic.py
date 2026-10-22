@@ -51,3 +51,13 @@ def test_no_api_key_is_explicit(monkeypatch):
                   files={"pdf":("book.pdf",pdf(),"application/pdf")},
                   data={"notes":"roots","consent":"true"})
     assert r.status_code==503
+
+
+def test_long_textbook_shortlist_covers_middle_and_end():
+    paragraphs=[{"page":i+1,"text":f"Unique passage {i}"} for i in range(500)]
+    selected=semantic_matcher._shortlist(paragraphs,"photosynthesis sunlight")
+    pages={p["page"] for p in selected}
+    assert len(selected)==120
+    assert any(200 <= page <= 300 for page in pages)
+    assert any(page >= 450 for page in pages)
+    assert all(p in paragraphs for p in selected)
