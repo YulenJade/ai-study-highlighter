@@ -1,0 +1,91 @@
+"""V0.7a single-course, read-only Notion → PDF match preview.
+
+All IDs are server configured. Never accept arbitrary Notion page IDs or PDF URLs
+from browser input. Files are downloaded on demand; no signed URL is persisted.
+"""
+from __future__ import annotations
+
+import os
+import httpx
+
+from .notion_notes_readonly import _clean_id, extract_summary_blocks, NOTION_VERSION
+from .paragraph_matcher import match_best_paragraph
+
+PDF_MAX_BYTES = 15 * 1024 * 1024
+
+
+def _title(prop: dict) -> str:
+    return "".join(x.get("plain_text", x.get("text", {}).get("content", ""))
+                   for x in prop.get("title", []) or prop.get("rich_text", []))
+
+
+def _select(prop: dict) -> str:
+    return (prop.get("select") or {}).get("name", "")
+
+
+def _file_url(prop: dict) -> str:
+    files = prop.get("files") or []
+    if len(files) != 1:
+        raise ValueError("Textbook must have exactly one PDF")
+    item = files[0]
+    url = (item.get("file") or item.get("external") or {}).get("url", "")
+    if not url.startswith("https://"):
+        raise ValueError("Invalid textbook file URL")
+    return url
+
+
+async def inspect_bound_course() -> dict:
+    token = os.getenv("NOTION_INTEGRATION_TOKEN", "").strip()
+    note_id = _clean_id(os.getenv("NOTION_TEST_NOTE_PAGE_ID", ""))
+    textbook_id = _clean_id(os.getenv("NOTION_TEST_TEXTBOOK_PAGE_ID", ""))
+    expected_course = os.getenv("NOTION_TEST_COURSE", "").strip()
+    if not token or not expected_course:
+        raise ValueError("Configure integration token and expected course")
+    headers = {"Authorization": f"Bearer {token}", "Notion-Version": NOTION_VERSION}
+    async with httpx.AsyncClient(timeout=25, follow_redirects=False) as client:
+        note_page = await client.get(f"https://api.notion.com/v1/pages/{note_id}", headers=headers)
+        note_page.raise_for_status()
+        textbook = await client.get(f"https://api.notion.com/v1/pages/{textbook_id}", headers=headers)
+        textbook.raise_for_status()
+        props = textbook.json().get("properties", {})
+        title = _title(props.get("教材名称", {}))
+        course = _select(props.get("所属课程", {}))
+        if not title or course != expected_course:
+            raise ValueError("Textbook title or course binding does not match")
+        url = _file_url(props.get("原版PDF", {}))
+        note_blocks = await client.get(f"https://api.notion.com/v1/blocks/{note_id}/children",
+                                       params={"page_size": 100}, headers=headers)
+        note_blocks.raise_for_status()
+        body = note_blocks.json()
+        if body.get("has_more"):
+            raise ValueError("Note has more than 100 blocks; review incomplete")
+        lines = extract_summary_blocks(body.get("results", []), limit=20)
+        if not lines:
+            raise ValueError("No readable summary blocks; AI notes may be nested")
+        # The URL is a short-lived Notion-signed URL from a trusted Notion API
+        # response. Never accept arbitrary client-supplied URLs.
+        if not (url.startswith("https://prod-files-secure") or
+                url.startswith("https://secure.notion-static.com/")):
+            raise ValueError("PDF host is not on the approved Notion file host list")
+        pdf_response = await client.get(url)
+        pdf_response.raise_for_status()
+        pdf = pdf_response.content
+        if len(pdf) > PDF_MAX_BYTES:
+            raise ValueError("PDF exceeds 15MB")
+    if not pdf.startswith(b"%PDF-"):
+        raise ValueError("Not a PDF file")
+    summary, _ = match_best_paragraph(pdf, "\n".join(lines))
+    return {
+        "note_page_id": note_id,
+        "textbook_page_id": textbook_id,
+        "course": course,
+        "textbook": title,
+        "note_last_edited_time": note_page.json().get("last_edited_time"),
+        "note_summary_lines": len(lines),
+        "pdf_page_count": summary["page_count"],
+        "candidates": summary["candidates"],
+        "matching_method": summary["matching_method"],
+        "requires_confirmation": True,
+        "notion_write_enabled": False,
+        "warning": "Read-only preview. Full AI Meeting Notes may not be exposed as top-level blocks.",
+    }
