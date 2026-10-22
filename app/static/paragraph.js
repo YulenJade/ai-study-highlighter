@@ -31,7 +31,12 @@ $("publish").addEventListener("click",async()=>{
 });
 window.addEventListener("beforeunload",()=>{if(url)URL.revokeObjectURL(url);});translate();
 let multiReady=false;
-function resetMulti(){multiReady=false;$("multiDownload").disabled=true;$("multiResults").textContent="";}
+let multiSnapshot=null;
+function selectedBatch(){return [...document.querySelectorAll(".batchChoice:checked")].map(el=>Number(el.value));}
+function updateBatch(){const id=$("batchPageId").value.replace(/-/g,"");$("batchPublish").disabled=!(multiSnapshot&&selectedBatch().length>0&&selectedBatch().length<=30&&$("batchConfirm").checked&&/^[0-9a-fA-F]{32}$/.test(id));}
+$("batchPageId").addEventListener("input",updateBatch);
+$("batchConfirm").addEventListener("change",updateBatch);
+function resetMulti(){multiSnapshot=null;$("batchControls").hidden=true;$("batchConfirm").checked=false;updateBatch();multiReady=false;$("multiDownload").disabled=true;$("multiResults").textContent="";}
 $("pdf").addEventListener("change",resetMulti);
 $("notes").addEventListener("input",resetMulti);
 $("multiAnalyze").addEventListener("click",async()=>{
@@ -41,10 +46,20 @@ $("multiAnalyze").addEventListener("click",async()=>{
   const result=await(await send("/multi/preview")).json();
   multiReady=result.match_count>0;
   $("multiDownload").disabled=!multiReady;
-  $("multiResults").textContent=result.results.map(r=>
-   (r.matched?"✓ "+t("page")+" "+r.page+" · "+r.category+" · "+r.score:"✕")+
-   "\n"+r.note+(r.matched?"\n"+r.text:"")
-  ).join("\n\n");
+  multiSnapshot=result;
+  const holder=$("multiResults");holder.replaceChildren();
+  result.results.forEach((r,i)=>{
+    const row=document.createElement("div");row.style.cssText="padding:12px;margin:10px 0;border:1px solid #dae2eb;border-radius:10px";
+    if(r.matched){
+      const label=document.createElement("label");label.style.fontWeight="normal";
+      const cb=document.createElement("input");cb.type="checkbox";cb.className="batchChoice";cb.value=String(i);cb.style.width="auto";
+      cb.addEventListener("change",updateBatch);label.append(cb,document.createTextNode(" "+(lang==="zh"?"已核对并选择":"Verified and selected")));row.append(label);
+    }
+    const info=document.createElement("pre");
+    info.textContent=(r.matched?"✓ "+t("page")+" "+r.page+" · "+r.category+" · "+r.score:"✕ 未匹配 / Unmatched")+"\\n"+r.note+(r.matched?"\\n"+r.text:"");
+    row.append(info);holder.append(row);
+  });
+  $("batchControls").hidden=result.match_count===0;updateBatch();
  }catch(e){$("multiResults").textContent="分析失败 / Analysis failed: "+e.message;}
  finally{$("multiAnalyze").disabled=false;}
 });
@@ -59,4 +74,20 @@ $("multiDownload").addEventListener("click",async()=>{
   if(url)URL.revokeObjectURL(url);url=link;
  }catch(e){$("multiResults").textContent=e.message;}
  finally{$("multiDownload").disabled=false;}
+});
+
+$("batchPublish").addEventListener("click",async()=>{
+ if(!multiSnapshot||!validate())return;
+ const indices=selectedBatch();if(!indices.length||indices.length>30||!$("batchConfirm").checked)return;
+ const id=$("batchPageId").value.replace(/-/g,"");
+ if(!/^[0-9a-fA-F]{32}$/.test(id))return;
+ $("batchPublish").disabled=true;$("batchStatus").textContent=t("working");
+ const data=payload();data.append("page_id",id);data.append("book_title",$("batchBook").value.trim()||"Textbook");
+ data.append("selected_indices",JSON.stringify(indices));data.append("confirmed","true");
+ try{
+  const r=await fetch("/multi/notion/publish",{method:"POST",body:data});
+  if(!r.ok){let detail="HTTP "+r.status;try{detail=(await r.json()).detail||detail;}catch{}throw Error(detail);}
+  const result=await r.json();$("batchStatus").textContent=(lang==="zh"?"成功写入 ":"Published ")+result.highlights_added+(lang==="zh"?" 条重点":" highlights");
+  $("batchConfirm").checked=false;document.querySelectorAll(".batchChoice").forEach(c=>c.checked=false);
+ }catch(e){$("batchStatus").textContent="Notion: "+e.message;}finally{updateBatch();}
 });
