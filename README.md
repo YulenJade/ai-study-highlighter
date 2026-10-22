@@ -1,43 +1,54 @@
 # AI Study Highlighter | AI 教材划重点
 
-> Match class notes to verifiable passages in PDF textbooks, then generate a highlighted copy.  
-> 根据课堂笔记定位教材 PDF 中可核验的原文，并生成高亮副本。
+> Verified PDF passage highlighting from study notes. / 根据笔记定位 PDF 真实原文并生成高亮副本。
 
-**Status / 状态:** Early MVP development. Not deployed, not a paid service. / 早期原型开发中，尚未部署或提供收费服务。
+**V0.2: local prototype, not a hosted AI service. / V0.2：本地原型，尚非线上 AI 服务。**
 
 ## Features / 功能
-- Upload a text-based PDF and paste study notes / 上传文字型 PDF、粘贴课堂笔记
-- Exact text matching and page-level highlight / 精确文字匹配与原文高亮
-- Download a new PDF without modifying the original / 下载独立高亮 PDF
-- Planned: semantic retrieval, OCR, Notion OAuth, quizzes, billing / 规划：语义检索、OCR、Notion 授权、复习题、支付
+- Chinese and English **literal** text search in text-based PDFs / 支持文字型 PDF 的中英文原文搜索
+- Preview matching page numbers, coordinates, categories and unmatched phrases / 预览页码、坐标、分类与未匹配词句
+- Three highlight colors: `[重点]` yellow, `[定义]` green, `[补充]` blue / 三色高亮
+- Export a separate annotated PDF / 导出带高亮标注的 PDF 副本
+- Up to 15 MB, 300 pages, 40 phrases, 1000 matches / 限制文件、页数和匹配数量
 
-## Quick start / 快速开始
-Requires Python 3.11+.
+**Not AI semantic matching:** notes must contain text actually present in the PDF. Image-only/scanned PDFs require OCR, which is not implemented. Chinese PDFs must contain extractable text; unusual encodings may fail. / 目前是原文匹配，不是语义理解；扫描版需要未来 OCR。
+
+## Quick start / 启动
+Python 3.11+:
 ```bash
+git clone https://github.com/YulenJade/ai-study-highlighter.git
+cd ai-study-highlighter
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+python -m pip install -r requirements.txt
+python -m pytest -q
+uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
-On Windows use `.venv\Scripts\activate`. Visit http://127.0.0.1:8000/docs for API docs.
+Windows activation: `.venv\Scripts\activate`.
 
-Example:
+Visit `http://127.0.0.1:8000/docs` for interactive API documentation.
+
+## Preview / 预览
+```bash
+curl -X POST http://127.0.0.1:8000/preview \
+  -F "pdf=@book.pdf" \
+  -F $'notes=[重点] photosynthesis\n[定义] chlorophyll'
+```
+Returns JSON with `page_count`, `match_count`, `matched_pages`, `unmatched_terms`, `matches` (including `page`, `text`, `category`, `rect`) and `truncated`. Page numbering starts at 1. Coordinates are PDF page coordinates.
+
+## Export / 导出
 ```bash
 curl -X POST http://127.0.0.1:8000/highlight \
-  -F "pdf=@your-textbook.pdf" \
-  -F "notes=photosynthesis" \
+  -F "pdf=@book.pdf" \
+  -F "notes=[定义] photosynthesis" \
   -o highlighted.pdf
 ```
 
-**Limitations:** V0.1 uses literal matching, not AI understanding; scanned/image-only PDFs need OCR (not yet supported). For local development only; the upload API has no authentication, rate limiting, or production-grade malware scanning. Do not expose directly to the public Internet.
+## Security / 安全
+**Local development only. Do not expose to the Internet.** No authentication, user isolation, malware scanning, or rate limiting. PDF parsing consumes resources; file-size limits alone do not guarantee safety. Do not commit textbooks, personal notes, credentials or customer data. Only process PDFs you have the rights to use. / 仅用于本地开发，未经鉴权与安全加固不得公网开放。
 
-## Documentation / 文档
-- [Product requirements / 产品需求](docs/PRD.md)
-- [Architecture / 架构与安全](docs/ARCHITECTURE.md)
-- [Roadmap / 路线图](docs/ROADMAP.md)
+## Docs / 文档
+[PRD](docs/PRD.md) · [Architecture](docs/ARCHITECTURE.md) · [Roadmap](docs/ROADMAP.md)
 
-## Privacy & copyright / 隐私与版权
-Only process files you have rights to use. Do not commit textbooks, private notes, API keys, tokens, or customer data. Uploaded PDFs are processed in memory in this demo and are not intentionally retained by the application. / 仅处理有权使用的文件；不要上传私人教材、笔记、密钥和用户数据到 GitHub。
-
-## License
-MIT (code only; no license granted to third-party textbook content).
+## License / 许可
+No software license is granted unless a LICENSE file is added; third-party textbooks remain owned by their respective rightsholders. / 仓库尚未包含 LICENSE 文件，不能仅凭 README 声明视为已授予 MIT 许可。
