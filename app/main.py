@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from .highlighter import analyze_pdf, extract_items
 from .paragraph_matcher import match_best_paragraph
 from .multi_matcher import match_multiple
+from .pdf_crops import crop_candidate
 from .notion_export import append_result, append_multi_result
 
 app = FastAPI(title="AI Study Highlighter", version="0.3.0")
@@ -213,3 +214,31 @@ async def multi_notion_publish(pdf: UploadFile = File(...), notes: str = Form(..
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception:
         raise HTTPException(status_code=502, detail="Notion publish failed; check permissions") from None
+
+
+@app.post("/v07a/candidates")
+async def v07a_candidates(pdf: UploadFile = File(...), notes: str = Form(...)):
+    """Read-only candidate preview. PDF is not stored or sent to Notion."""
+    data = await read_input(pdf, notes)
+    try:
+        summary, _ = match_best_paragraph(data, notes)
+        return {"candidates": summary["candidates"], "page_count": summary["page_count"],
+                "matching_method": summary["matching_method"],
+                "requires_confirmation": True, "notion_write_enabled": False}
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/v07a/crop")
+async def v07a_crop(pdf: UploadFile = File(...), notes: str = Form(...),
+                    candidate_index: int = Form(...)):
+    """Render only a server-recomputed source PDF paragraph; no Notion writes."""
+    data = await read_input(pdf, notes)
+    try:
+        meta, png = crop_candidate(data, notes, candidate_index)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return StreamingResponse(BytesIO(png), media_type="image/png",
+                             headers={"Cache-Control": "no-store",
+                                      "X-PDF-Page": str(meta["page"]),
+                                      "X-Candidate-Index": str(meta["candidate_index"])})
