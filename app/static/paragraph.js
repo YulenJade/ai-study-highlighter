@@ -123,3 +123,22 @@ $("cropAnalyze").addEventListener("click",async()=>{
  }catch(e){if(generation===cropGeneration)$("cropStatus").textContent=e.message;}
  finally{$("cropAnalyze").disabled=false;}
 });
+
+$("discoverNotes").addEventListener("click",async()=>{
+ const btn=$("discoverNotes"),holder=$("discoveredNotes");
+ btn.disabled=true;holder.replaceChildren();$("discoverStatus").textContent="正在读取已授权的课程页面…";
+ try{
+  const r=await fetch("/v07a/notion/discover");
+  if(!r.ok){let msg="HTTP "+r.status;try{msg=(await r.json()).detail||msg;}catch{}throw Error(msg);}
+  const data=await r.json();
+  $("discoverStatus").textContent="已扫描 "+data.pages_scanned+" 个页面；课程候选 "+data.notes.length+" 个"+(data.incomplete?"（仅部分结果）":"")+"。请人工确认哪些是 AI 课堂笔记。";
+  data.notes.forEach(item=>{
+   const p=document.createElement("p"),a=document.createElement("a");
+   a.href="https://www.notion.so/"+item.page_id;a.target="_blank";a.rel="noopener noreferrer";
+   a.textContent=item.title||"未命名页面";
+   p.append(document.createTextNode(item.course+" · "),a);
+   holder.append(p);
+  });
+ }catch(e){$("discoverStatus").textContent="扫描失败："+e.message;}
+ finally{btn.disabled=false;}
+});
