@@ -285,3 +285,22 @@ async def v07a_notion_discover():
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception:
         raise HTTPException(status_code=502, detail="Notion discovery failed; verify integration permissions") from None
+
+
+@app.get("/v07a/course/crop/{candidate_index}")
+async def v07a_course_crop(candidate_index: int):
+    """Render a Notion-bound PDF source crop on demand; never write to Notion."""
+    if not os.getenv("DEMO_ACCESS_TOKEN"):
+        raise HTTPException(status_code=503, detail="Demo authentication must be configured")
+    if not 0 <= candidate_index <= 4:
+        raise HTTPException(status_code=422, detail="Candidate index must be between 0 and 4")
+    try:
+        meta, png = await inspect_bound_course(candidate_index=candidate_index)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception:
+        raise HTTPException(status_code=502, detail="Notion PDF crop failed; verify integration access") from None
+    return StreamingResponse(BytesIO(png), media_type="image/png",
+                             headers={"Cache-Control": "no-store",
+                                      "X-PDF-Page": str(meta["selected_candidate"]["page"]),
+                                      "X-Candidate-Index": str(candidate_index)})
