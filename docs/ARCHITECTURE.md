@@ -1,15 +1,11 @@
-# Architecture / 技术架构
+# V0.4 architecture
 
-## Current MVP
-FastAPI upload -> PyMuPDF text search -> PDF annotations -> streaming download.
-No database or external AI services. Processing happens in the application process.
+Browser → same-origin FastAPI (HTTPS / independent Basic accounts) → external PostgreSQL metadata + private S3 objects. File bytes never use durable local paths. Text extraction/annotation runs in a disposable child with no application credentials, bounded CPU/memory/output and a parent-enforced deadline. This child is resource isolation, not a kernel security sandbox.
 
-## Security
-This is a **local development demo only**. It lacks authentication, user isolation, rate limiting, antivirus scanning, and background processing. Do not expose directly to the public Internet. Set network and CPU/memory restrictions when testing untrusted PDFs. Do not commit copyrighted textbooks, notes, secrets, or user data.
+Accounts are provisioned in environment secrets as salted scrypt hashes. The authenticated account name is the only source of ownership; clients cannot submit an owner or object key. Every book lookup includes both ID and owner, including original downloads, extracted text and PDF operations. Mutations require a custom header and no CORS policy is enabled.
 
-## Planned
-- OCR for image-only PDFs
-- Embedding candidate retrieval followed by exact PDF coordinate verification
-- Notion OAuth and per-user scopes
-- Background queue, private storage, expiring downloads
-- Signed payment webhooks and entitlements
+PostgreSQL `library_users` maintains byte/count reservations; `library_books` stores owner, random ID, original name/type/size/hash, state and timestamp. Atomic conditional updates enforce quotas. `pending` reservations commit before object writes. Remote writes and deletes lock the account row for their transaction; a concurrent delete cannot race an upload into an orphaned object. After a successful write metadata changes to `ready`. Ambiguous failures retain pending metadata and quota; explicit deletion removes the object first and releases quota only after success. Ready downloads verify size and SHA-256. Extracted text and annotated outputs are regenerated; quota covers originals only. See README for backups, versioning and provider limits.
+
+Temporary endpoints are backward compatible. The literal PDF annotation engine retains categories and page coordinates. DOCX/PPTX use ZIP metadata checks and defused XML; only document/slide text is read. TXT/MD require UTF-8. Markdown/filenames are inserted into the UI as text, never HTML. PDF output uses browser blob previews; files are not exposed through a public static folder.
+
+Production startup requires provisioned accounts, PostgreSQL and S3. SQLite/in-memory objects exist only in tests. CI also exercises PostgreSQL + MinIO. Request/parser concurrency and the authentication request budget are process-local; the Docker deployment intentionally runs one worker. Large-scale/public use requires independent no-network parser infrastructure, a durable queue, distributed controls and malware scanning.

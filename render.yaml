@@ -1,9 +1,28 @@
 services:
   - type: web
-    name: ai-study-highlighter-demo
+    name: ai-study-highlighter
     runtime: docker
     plan: free
     healthCheckPath: /health
     envVars:
-      - key: DEMO_ACCESS_TOKEN
+      - key: APP_ENV
+        value: production
+      - key: LIBRARY_USERS
         sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_DEFAULT_REGION
+        value: us-east-1
+      # Set S3_ENDPOINT_URL separately for a non-AWS compatible provider.
+      - key: MAX_BOOK_MB
+        value: '100'
+      - key: USER_QUOTA_MB
+        value: '1024'
+      - key: USER_BOOK_LIMIT
+        value: '100'
