@@ -133,3 +133,24 @@ def test_ui_invalid_pdf_rejected_by_backend():
     response = client.post("/preview", files={"pdf": ("fake.pdf", b"not pdf", "application/pdf")},
                            data={"notes": "[重点] test"})
     assert response.status_code == 422
+
+
+def test_demo_auth_guard(monkeypatch):
+    import base64
+    monkeypatch.setenv("DEMO_ACCESS_TOKEN", "strong-test-token")
+    assert client.get("/").status_code == 401
+    assert client.get("/static/app.js").status_code == 401
+    assert client.post("/preview", files={"pdf": ("x.pdf", make_pdf(), "application/pdf")},
+                       data={"notes": "photosynthesis"}).status_code == 401
+    assert client.get("/health").status_code == 200
+    encoded = base64.b64encode(b"demo:strong-test-token").decode()
+    response = client.get("/", headers={"Authorization": "Basic " + encoded})
+    assert response.status_code == 200
+    assert "AI 教材划重点" in response.text
+    bad = base64.b64encode(b"demo:wrong").decode()
+    assert client.get("/", headers={"Authorization": "Basic " + bad}).status_code == 401
+
+
+def test_demo_auth_missing_password(monkeypatch):
+    monkeypatch.setenv("DEMO_ACCESS_TOKEN", "strong-test-token")
+    assert client.get("/", headers={"Authorization": "Basic invalid!"}).status_code == 401
