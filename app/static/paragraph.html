@@ -26,6 +26,7 @@ a{color:#205ad4}
 <button id="analyze">查找最相关段落</button><button id="download" disabled>下载段落高亮 PDF</button>
 <p id="status" role="status"></p><p id="error" role="alert"></p>
 </section>
+<section class="card"><h2>V0.6 · 中文语义匹配 / Semantic candidates</h2><p class="muted">需要服务端 OPENAI_API_KEY。分析时将课堂笔记和最多 120 个 PDF 段落发送给外部模型服务商；长教材可能遗漏候选段落。相似度不是正确概率。</p><label style="font-weight:400"><input type="checkbox" id="semanticConsent" style="width:auto"> 我同意发送教材文本进行语义匹配 / I consent to external embeddings</label><button id="semanticAnalyze">语义分析 / Semantic search</button><div id="semanticResults" aria-live="polite"></div><button id="semanticDownload" disabled>下载选中段落高亮 PDF</button><p id="semanticStatus" role="status"></p></section>
 <section class="card"><h2>V0.4 · 多重点高亮 / Multi-note highlights</h2><p class="muted">每行输入一个重点，可使用 [重点]、[定义]、[补充] 分类。此功能使用词语匹配，不是 AI 语义理解；请人工复核。</p><button id="multiAnalyze">分析多条重点</button><button id="multiDownload" disabled>下载多色高亮 PDF</button><div id="multiResults" aria-live="polite"></div><div id="batchControls" hidden><p class="muted">逐条勾选核对过的匹配段落（最多 30 条），再写入 Notion。/ Select verified matches (max 30).</p><label for="batchPageId">Notion 页面 ID / Page ID</label><input id="batchPageId" value="4015440836d58176bdeec58c4750d22f" maxlength="36" placeholder="32-character page ID"><label for="batchBook">教材名称 / Book title</label><input id="batchBook" maxlength="150" placeholder="Textbook"><label style="font-weight:400"><input type="checkbox" id="batchConfirm" style="width:auto"> 我已逐条核对所选原文 / I reviewed each selected passage</label><button id="batchPublish" disabled>批量写入 Notion / Publish selected</button><p id="batchStatus" role="status"></p></div></section>
 <section class="card" id="results" hidden>
 <h2 id="resultTitle">最相关原文</h2>
@@ -45,4 +46,4 @@ a{color:#205ad4}
 </div>
 </section>
 <section class="card" id="previewCard" hidden><h2 id="previewTitle">高亮 PDF 预览</h2><iframe id="preview" title="PDF preview"></iframe></section>
-</main><script src="/static/paragraph.js?v=0.5.1" defer></script></body></html>
+</main><script src="/static/paragraph.js?v=0.6.0" defer></script></body></html>
