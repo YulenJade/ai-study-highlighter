@@ -1,5 +1,6 @@
 """Local-only development API; do not expose publicly without security controls."""
 from io import BytesIO
+import json
 import os
 import secrets
 from pathlib import Path
@@ -11,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from .highlighter import analyze_pdf, extract_items
 from .paragraph_matcher import match_best_paragraph
 from .multi_matcher import match_multiple
-from .notion_export import append_result
+from .notion_export import append_result, append_multi_result
 
 app = FastAPI(title="AI Study Highlighter", version="0.3.0")
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -186,3 +187,29 @@ async def multi_highlight(pdf: UploadFile = File(...), notes: str = Form(...)):
             "X-Matched-Pages": ",".join(map(str, summary["matched_pages"])),
         },
     )
+
+
+@app.post("/multi/notion/publish")
+async def multi_notion_publish(pdf: UploadFile = File(...), notes: str = Form(...),
+                               page_id: str = Form(...), book_title: str = Form("Textbook"),
+                               selected_indices: str = Form(...),
+                               confirmed: bool = Form(False)):
+    """Publish only explicitly confirmed indices, recomputed from the supplied PDF."""
+    if not os.getenv("DEMO_ACCESS_TOKEN"):
+        raise HTTPException(status_code=503, detail="Configure demo authentication before publishing")
+    if not confirmed:
+        raise HTTPException(status_code=422, detail="Explicit review confirmation is required")
+    try:
+        indices = json.loads(selected_indices)
+        if not isinstance(indices, list):
+            raise ValueError("Selection must be a JSON array")
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=422, detail="Invalid selection JSON") from None
+    data = await read_input(pdf, notes)
+    try:
+        summary, _ = match_multiple(data, notes)
+        return await append_multi_result(page_id, summary, book_title, indices)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception:
+        raise HTTPException(status_code=502, detail="Notion publish failed; check permissions") from None
