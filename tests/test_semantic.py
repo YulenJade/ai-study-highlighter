@@ -1,4 +1,5 @@
 """Semantic ranking and opt-in endpoint tests; no external API calls."""
+import asyncio
 import fitz
 import pytest
 from fastapi.testclient import TestClient
@@ -19,13 +20,12 @@ def test_cosine():
     assert semantic_matcher.cosine([1,0],[0,1]) == pytest.approx(0)
 
 
-@pytest.mark.asyncio
-async def test_candidates_rank_by_semantic_vectors(monkeypatch):
+def test_candidates_rank_by_semantic_vectors(monkeypatch):
     async def fake_embeddings(texts):
         assert len(texts)==3
         return [[0,1],[1,0],[0,1]]
     monkeypatch.setattr(semantic_matcher,"_embeddings",fake_embeddings)
-    result=await semantic_matcher.semantic_candidates(pdf(),"植物如何吸收水分")
+    result=asyncio.run(semantic_matcher.semantic_candidates(pdf(),"植物如何吸收水分"))
     assert result["candidates"][0]["page"]==1
     assert "Roots" in result["candidates"][0]["text"]
     assert result["requires_confirmation"]
