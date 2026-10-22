@@ -13,6 +13,7 @@ from .highlighter import analyze_pdf, extract_items
 from .paragraph_matcher import match_best_paragraph
 from .multi_matcher import match_multiple
 from .pdf_crops import crop_candidate
+from .notion_notes_readonly import inspect_configured_note
 from .notion_export import append_result, append_multi_result
 
 app = FastAPI(title="AI Study Highlighter", version="0.3.0")
@@ -242,3 +243,17 @@ async def v07a_crop(pdf: UploadFile = File(...), notes: str = Form(...),
                              headers={"Cache-Control": "no-store",
                                       "X-PDF-Page": str(meta["page"]),
                                       "X-Candidate-Index": str(meta["candidate_index"])})
+
+
+@app.get("/v07a/notion/inspect")
+async def v07a_notion_inspect():
+    """Read-only probe of one explicitly configured Notion note, never write."""
+    if not os.getenv("DEMO_ACCESS_TOKEN"):
+        raise HTTPException(status_code=503, detail="Demo authentication must be configured")
+    try:
+        return await inspect_configured_note()
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception:
+        raise HTTPException(status_code=502,
+                            detail="Notion note inspection failed; verify integration access") from None
