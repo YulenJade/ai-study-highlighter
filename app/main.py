@@ -15,6 +15,7 @@ from .multi_matcher import match_multiple
 from .pdf_crops import crop_candidate
 from .notion_notes_readonly import inspect_configured_note
 from .v07a_course_preview import inspect_bound_course
+from .notion_discovery import discover_notes
 from .notion_export import append_result, append_multi_result
 
 app = FastAPI(title="AI Study Highlighter", version="0.3.0")
@@ -271,3 +272,16 @@ async def v07a_course_preview():
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception:
         raise HTTPException(status_code=502, detail="Notion course preview failed; verify access and file") from None
+
+
+@app.get("/v07a/notion/discover")
+async def v07a_notion_discover():
+    """Discover shared pages under configured course roots, without writes."""
+    if not os.getenv("DEMO_ACCESS_TOKEN"):
+        raise HTTPException(status_code=503, detail="Demo authentication must be configured")
+    try:
+        return await discover_notes()
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception:
+        raise HTTPException(status_code=502, detail="Notion discovery failed; verify integration permissions") from None
