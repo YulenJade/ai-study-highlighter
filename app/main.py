@@ -1,12 +1,16 @@
 """Local-only development API; do not expose publicly without security controls."""
 from io import BytesIO
+from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 
 from .highlighter import analyze_pdf, extract_items
 
-app = FastAPI(title="AI Study Highlighter", version="0.2.0")
+app = FastAPI(title="AI Study Highlighter", version="0.3.0")
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 MAX_BYTES = 15 * 1024 * 1024
 MAX_NOTES = 10_000
 
@@ -34,9 +38,14 @@ async def read_input(pdf: UploadFile, notes: str) -> bytes:
     return data
 
 
+@app.get("/", include_in_schema=False)
+def homepage():
+    return FileResponse(STATIC_DIR / "index.html", media_type="text/html", headers={"Cache-Control": "no-store"})
+
+
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": "0.2.0"}
+    return {"status": "ok", "version": "0.3.0"}
 
 
 @app.post("/preview")
