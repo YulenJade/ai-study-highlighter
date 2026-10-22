@@ -30,3 +30,33 @@ $("publish").addEventListener("click",async()=>{
  catch(e){$("error").textContent=e.message;}finally{updatePublish();}
 });
 window.addEventListener("beforeunload",()=>{if(url)URL.revokeObjectURL(url);});translate();
+let multiReady=false;
+function resetMulti(){multiReady=false;$("multiDownload").disabled=true;$("multiResults").textContent="";}
+$("pdf").addEventListener("change",resetMulti);
+$("notes").addEventListener("input",resetMulti);
+$("multiAnalyze").addEventListener("click",async()=>{
+ if(!validate())return;
+ $("multiAnalyze").disabled=true;$("multiDownload").disabled=true;$("multiResults").textContent=t("working");
+ try{
+  const result=await(await send("/multi/preview")).json();
+  multiReady=result.match_count>0;
+  $("multiDownload").disabled=!multiReady;
+  $("multiResults").textContent=result.results.map(r=>
+   (r.matched?"✓ "+t("page")+" "+r.page+" · "+r.category+" · "+r.score:"✕")+
+   "\\n"+r.note+(r.matched?"\\n"+r.text:"")
+  ).join("\\n\\n");
+ }catch(e){$("multiResults").textContent=e.message;}
+ finally{$("multiAnalyze").disabled=false;}
+});
+$("multiDownload").addEventListener("click",async()=>{
+ if(!multiReady||!validate())return;
+ $("multiDownload").disabled=true;
+ try{
+  const blob=await(await send("/multi/highlight")).blob();
+  const link=URL.createObjectURL(blob);
+  const a=document.createElement("a");a.href=link;a.download="multi-highlighted.pdf";a.click();
+  $("preview").src=link;$("previewCard").hidden=false;
+  if(url)URL.revokeObjectURL(url);url=link;
+ }catch(e){$("multiResults").textContent=e.message;}
+ finally{$("multiDownload").disabled=false;}
+});
