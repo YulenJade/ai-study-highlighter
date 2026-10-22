@@ -48,7 +48,7 @@ def library(tmp_path, monkeypatch):
     if os.getenv('TEST_S3_ENDPOINT'):
         import boto3
         storage = boto3.client('s3', endpoint_url=os.environ['TEST_S3_ENDPOINT'],
-                               aws_access_key_id='minioadmin', aws_secret_access_key='minioadmin',
+                               aws_access_key_id='test-key', aws_secret_access_key='test-secret',
                                region_name='us-east-1')
         from botocore.exceptions import ClientError
         try:

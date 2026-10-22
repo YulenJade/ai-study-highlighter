@@ -74,6 +74,6 @@ Render free memory, request duration, cold starts and provider quotas can preven
 
 ## Tests and deployment
 
-`python -m pytest -q` covers original PDF behavior, all five formats, authentication, cross-user access, quota races, restart reuse, ambiguous writes, deletion failures, malformed input, parser timeouts and request size limits. Local metadata tests use SQLite **only as a test fixture**; production rejects SQLite. GitHub Actions also runs the library suite against PostgreSQL and a private MinIO bucket, checks JavaScript syntax, and builds the non-root Docker image. No real cloud credentials are needed in CI.
+`python -m pytest -q` covers original PDF behavior, all five formats, authentication, cross-user access, quota races, restart reuse, ambiguous writes, deletion failures, malformed input, parser timeouts and request size limits. Local metadata tests use SQLite **only as a test fixture**; production rejects SQLite. GitHub Actions also runs the library suite against PostgreSQL and a private Moto S3 test bucket, checks JavaScript syntax, and builds the non-root Docker image. No real cloud credentials are needed in CI.
 
 [Deployment](docs/DEPLOYMENT.md) · [Architecture](docs/ARCHITECTURE.md) · [Roadmap](docs/ROADMAP.md)

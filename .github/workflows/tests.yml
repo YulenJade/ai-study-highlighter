@@ -47,14 +47,13 @@ jobs:
       - run: python -m pip install -r requirements.txt
       - name: Start private S3-compatible test store
         run: |
-          docker run -d --name test-minio -p 9000:9000 \
-            -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin \
-            quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z server /data
+          python -m pip install 'moto[server]>=5.1,<6'
+          moto_server -H 127.0.0.1 -p 9000 > /tmp/study-s3-test.log 2>&1 &
           for attempt in $(seq 1 30); do
-            if curl -fsS http://localhost:9000/minio/health/live; then exit 0; fi
+            if curl -fsS http://localhost:9000/; then exit 0; fi
             sleep 2
           done
-          docker logs test-minio
+          cat /tmp/study-s3-test.log
           exit 1
       - name: PostgreSQL quota race, S3 persistence, owner isolation and recovery
         env:
