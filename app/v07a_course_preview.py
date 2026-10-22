@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import httpx
+from urllib.parse import urlparse
 
 from .notion_notes_readonly import _clean_id, extract_summary_blocks, NOTION_VERSION
 from .paragraph_matcher import match_best_paragraph
@@ -64,14 +65,20 @@ async def inspect_bound_course() -> dict:
             raise ValueError("No readable summary blocks; AI notes may be nested")
         # The URL is a short-lived Notion-signed URL from a trusted Notion API
         # response. Never accept arbitrary client-supplied URLs.
-        if not (url.startswith("https://prod-files-secure") or
-                url.startswith("https://secure.notion-static.com/")):
+        if urlparse(url).hostname not in {"secure.notion-static.com",
+                                            "prod-files-secure-apne1.s3.ap-northeast-1.amazonaws.com",
+                                            "prod-files-secure.s3.us-west-2.amazonaws.com"}:
             raise ValueError("PDF host is not on the approved Notion file host list")
-        pdf_response = await client.get(url)
-        pdf_response.raise_for_status()
-        pdf = pdf_response.content
-        if len(pdf) > PDF_MAX_BYTES:
-            raise ValueError("PDF exceeds 15MB")
+        async with client.stream("GET", url) as pdf_response:
+            pdf_response.raise_for_status()
+            parts = []
+            size = 0
+            async for part in pdf_response.aiter_bytes():
+                size += len(part)
+                if size > PDF_MAX_BYTES:
+                    raise ValueError("PDF exceeds 15MB")
+                parts.append(part)
+            pdf = b"".join(parts)
     if not pdf.startswith(b"%PDF-"):
         raise ValueError("Not a PDF file")
     summary, _ = match_best_paragraph(pdf, "\n".join(lines))
