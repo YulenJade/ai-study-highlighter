@@ -14,6 +14,7 @@ from .paragraph_matcher import match_best_paragraph
 from .multi_matcher import match_multiple
 from .pdf_crops import crop_candidate
 from .notion_notes_readonly import inspect_configured_note
+from .v07a_course_preview import inspect_bound_course
 from .notion_export import append_result, append_multi_result
 
 app = FastAPI(title="AI Study Highlighter", version="0.3.0")
@@ -257,3 +258,16 @@ async def v07a_notion_inspect():
     except Exception:
         raise HTTPException(status_code=502,
                             detail="Notion note inspection failed; verify integration access") from None
+
+
+@app.get("/v07a/course/preview")
+async def v07a_course_preview():
+    """Opt-in, authenticated, read-only configured course textbook preview."""
+    if not os.getenv("DEMO_ACCESS_TOKEN"):
+        raise HTTPException(status_code=503, detail="Demo authentication must be configured")
+    try:
+        return await inspect_bound_course()
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception:
+        raise HTTPException(status_code=502, detail="Notion course preview failed; verify access and file") from None
