@@ -16,7 +16,7 @@ def sample_pdf():
 
 def test_crop_is_real_png_and_has_provenance():
     metadata, image = crop_candidate(sample_pdf(), "Plants absorb water through roots", 0)
-    assert image[:8] == b"\\x89PNG\\r\\n\\x1a\\n"
+    assert image[:8] == bytes([137,80,78,71,13,10,26,10])
     assert metadata["page"] == 1
     assert metadata["source"] == "actual_pdf_render"
     assert metadata["requires_confirmation"] is True
@@ -42,4 +42,4 @@ def test_read_only_preview_and_crop_api():
                        data={"notes": "Plants absorb water through roots", "candidate_index": "0"})
     assert crop.status_code == 200
     assert crop.headers["content-type"].startswith("image/png")
-    assert crop.content.startswith(b"\\x89PNG")
+    assert crop.content.startswith(bytes([137,80,78,71]))
