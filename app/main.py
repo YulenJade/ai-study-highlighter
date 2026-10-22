@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .highlighter import analyze_pdf, extract_items
 from .paragraph_matcher import match_best_paragraph
+from .multi_matcher import match_multiple
 from .notion_export import append_result
 
 app = FastAPI(title="AI Study Highlighter", version="0.3.0")
@@ -155,3 +156,33 @@ async def notion_publish(pdf: UploadFile = File(...), notes: str = Form(...),
 @app.get("/paragraph/workbench", include_in_schema=False)
 def paragraph_workbench():
     return FileResponse(STATIC_DIR / "paragraph.html", media_type="text/html", headers={"Cache-Control": "no-store"})
+
+
+@app.post("/multi/preview")
+async def multi_preview(pdf: UploadFile = File(...), notes: str = Form(...)):
+    """Preview independently ranked source paragraphs for each note line."""
+    data = await read_input(pdf, notes)
+    try:
+        summary, _ = match_multiple(data, notes)
+        return summary
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/multi/highlight")
+async def multi_highlight(pdf: UploadFile = File(...), notes: str = Form(...)):
+    """Return a PDF with category-colored, source-grounded paragraph highlights."""
+    data = await read_input(pdf, notes)
+    try:
+        summary, output = match_multiple(data, notes, annotate=True)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    assert output is not None
+    return StreamingResponse(
+        BytesIO(output), media_type="application/pdf",
+        headers={
+            "Content-Disposition": 'attachment; filename="multi-highlighted.pdf"',
+            "X-Highlight-Matches": str(summary["match_count"]),
+            "X-Matched-Pages": ",".join(map(str, summary["matched_pages"])),
+        },
+    )
