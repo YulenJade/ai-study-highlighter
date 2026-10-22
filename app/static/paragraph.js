@@ -142,3 +142,32 @@ $("discoverNotes").addEventListener("click",async()=>{
  }catch(e){$("discoverStatus").textContent="扫描失败："+e.message;}
  finally{btn.disabled=false;}
 });
+
+$("boundPreview").addEventListener("click",async()=>{
+ const btn=$("boundPreview"),status=$("boundStatus"),list=$("boundCandidates"),image=$("boundImage");
+ btn.disabled=true;list.replaceChildren();image.replaceChildren();status.textContent="正在从 Notion 读取课程笔记和 PDF…";
+ try{
+  const response=await fetch("/v07a/course/preview",{cache:"no-store"});
+  if(!response.ok){let message="HTTP "+response.status;try{message=(await response.json()).detail||message;}catch{}throw Error(message);}
+  const data=await response.json();
+  status.textContent=data.course+" · "+data.textbook+" · PDF "+data.pdf_page_count+" 页 · 候选 "+data.candidates.length+" 个（请人工核对）";
+  data.candidates.forEach((candidate,i)=>{
+   const p=document.createElement("p"),b=document.createElement("button");
+   b.textContent="查看第 "+candidate.page+" 页候选 "+(i+1)+" 截图";
+   b.addEventListener("click",async()=>{
+    b.disabled=true;image.replaceChildren();
+    try{
+     const r=await fetch("/v07a/course/crop/"+i,{cache:"no-store"});
+     if(!r.ok)throw Error("截图接口返回 HTTP "+r.status);
+     const url=URL.createObjectURL(await r.blob()),img=document.createElement("img");
+     img.src=url;img.alt="PDF 第 "+candidate.page+" 页原文候选截图";img.style.maxWidth="100%";
+     img.onload=()=>URL.revokeObjectURL(url);
+     image.append(img);
+    }catch(e){image.textContent="截图失败："+e.message;}finally{b.disabled=false;}
+   });
+   p.append(b,document.createTextNode(" 词语匹配分数 "+candidate.score+"；"+candidate.text.slice(0,160)));
+   list.append(p);
+  });
+ }catch(e){status.textContent="读取失败："+e.message;}
+ finally{btn.disabled=false;}
+});
