@@ -1,13 +1,15 @@
 # Roadmap / 开发路线图
 
-- [x] Repository and bilingual README / 仓库与中英 README
-- [x] Local text-PDF literal highlighting endpoint / 本地精确匹配高亮接口
-- [ ] Validate real textbooks and notes / 真实教材笔记验证
-- [ ] Add confidence scoring and manual review / 置信度与人工确认
-- [ ] Semantic retrieval + PDF position verification / 语义检索与原文定位
-- [ ] OCR / 扫描版识别
-- [ ] Notion OAuth and sync / Notion 授权与同步
-- [ ] Authentication, private storage, worker queue / 用户隔离与队列
-- [ ] Dual payment and automated delivery / 双渠道支付与自动交付
+- [x] GitHub repository, bilingual README / 中英双语说明
+- [x] V0.1 exact PDF highlighting / 基础原文高亮
+- [x] V0.2 preview, page numbers, colored categories / 预览、页码、三色分类
+- [x] V0.2 Chinese text search path (requires extractable PDF text) / 中文文字检索流程
+- [ ] Verify real Chinese textbook PDFs and improve test fixtures / 真实中文教材验收
+- [ ] Better confidence scoring and manual confirmation / 置信度与人工确认
+- [ ] Semantic retrieval + PDF source verification / 语义检索与原文定位
+- [ ] OCR for scans / 扫描版 OCR
+- [ ] Notion OAuth and synchronization / Notion 集成
+- [ ] Multi-user auth, private storage and worker queue / 用户隔离
+- [ ] Payments and hosted deployment / 收费与部署
 
-Planning and Notion documents: https://app.notion.com/p/4015440836d58176bdeec58c4750d22f
+Project planning: https://app.notion.com/p/4015440836d58176bdeec58c4750d22f
