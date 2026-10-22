@@ -69,5 +69,5 @@ def test_bound_course_preview_and_png(monkeypatch):
     assert preview["notion_write_enabled"] is False
     result, png = asyncio.run(inspect_bound_course(candidate_index=0))
     assert result["selected_candidate"]["page"] == 1
-    assert png.startswith(b"\\x89PNG\\r\\n\\x1a\\n")
+    assert png.startswith(bytes.fromhex("89504e470d0a1a0a"))
     assert all(method == "GET" for method, _ in calls)
