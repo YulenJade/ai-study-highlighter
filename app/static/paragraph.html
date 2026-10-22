@@ -33,6 +33,15 @@ a{color:#205ad4}
 <h3 id="notionTitle">Notion 笔记同步（临时方法）</h3>
 <p class="muted" id="notionHelp">复制结果并粘贴到你的 Notion 课程笔记。自动同步需要单独配置授权。</p>
 <button id="copy">复制到 Notion</button>
+<div style="margin-top:16px;border-top:1px solid #dae2eb;padding-top:12px">
+<label id="pageIdLabel" for="pageId">Notion 目标页面 ID（需要服务端已授权）</label>
+<input id="pageId" autocomplete="off" spellcheck="false" placeholder="32-character Notion page ID" maxlength="36">
+<label id="bookTitleLabel" for="bookTitle">教材名称</label>
+<input id="bookTitle" maxlength="150" placeholder="Textbook">
+<label style="font-weight:400"><input type="checkbox" id="confirm" style="width:auto"> <span id="confirmLabel">我已核对原文，并同意将该段落写入指定 Notion 页面</span></label>
+<button id="publish" disabled>写入 Notion 页面</button>
+<p class="muted" id="publishHelp">仅适用于已配置 Notion 集成的单用户演示服务；请勿在此填写集成密钥。</p>
+</div>
 </section>
 <section class="card" id="previewCard" hidden><h2 id="previewTitle">高亮 PDF 预览</h2><iframe id="preview" title="PDF preview"></iframe></section>
 </main><script src="/static/paragraph.js" defer></script></body></html>
