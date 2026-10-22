@@ -1,3 +1,4 @@
+import asyncio
 import httpx
 import pytest
 
@@ -13,15 +14,13 @@ def test_extracts_only_standard_text_blocks():
     assert extract_summary_blocks(blocks) == ["课堂重点", "根系保护"]
 
 
-@pytest.mark.asyncio
-async def test_missing_config_is_rejected(monkeypatch):
+def test_missing_config_is_rejected(monkeypatch):
     monkeypatch.delenv("NOTION_TEST_NOTE_PAGE_ID", raising=False)
     with pytest.raises(ValueError, match="Configure"):
-        await inspect_configured_note()
+        asyncio.run(inspect_configured_note())
 
 
-@pytest.mark.asyncio
-async def test_readonly_probe_does_not_write(monkeypatch):
+def test_readonly_probe_does_not_write(monkeypatch):
     monkeypatch.setenv("NOTION_INTEGRATION_TOKEN", "test-token")
     monkeypatch.setenv("NOTION_TEST_NOTE_PAGE_ID", "4005440836d58010bdb1f86b9a98fe23")
     calls = []
@@ -38,7 +37,7 @@ async def test_readonly_probe_does_not_write(monkeypatch):
                 {"type": "paragraph", "paragraph": {"rich_text": [{"plain_text": "课堂重点"}]}}
             ]}, request=httpx.Request("GET", url))
     monkeypatch.setattr("app.notion_notes_readonly.httpx.AsyncClient", MockClient)
-    result = await inspect_configured_note()
+    result = asyncio.run(inspect_configured_note())
     assert result["summary_preview"] == ["课堂重点"]
     assert result["notion_write_enabled"] is False
     assert len(calls) == 2 and all(method == "GET" for method, _ in calls)
