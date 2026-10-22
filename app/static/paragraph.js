@@ -93,19 +93,21 @@ $("batchPublish").addEventListener("click",async()=>{
 });
 
 let semanticSelection=null;
-function resetSemantic(){semanticSelection=null;$("semanticDownload").disabled=true;$("semanticResults").replaceChildren();$("semanticStatus").textContent="";}
+let semanticGeneration=0;
+function resetSemantic(){semanticGeneration++;semanticSelection=null;$("semanticDownload").disabled=true;$("semanticResults").replaceChildren();$("semanticStatus").textContent="";}
 $("pdf").addEventListener("change",resetSemantic);
 $("notes").addEventListener("input",resetSemantic);
 $("semanticConsent").addEventListener("change",resetSemantic);
 $("semanticAnalyze").addEventListener("click",async()=>{
  if(!validate()){$("semanticStatus").textContent=$("error").textContent;return;}
  if(!$("semanticConsent").checked){$("semanticStatus").textContent="请先同意发送教材文本 / Consent required";return;}
- $("semanticAnalyze").disabled=true;resetSemantic();$("semanticStatus").textContent=t("working");
+ $("semanticAnalyze").disabled=true;resetSemantic();const requestGeneration=semanticGeneration;$("semanticStatus").textContent=t("working");
  try{
   const data=payload();data.append("consent","true");
   const r=await fetch("/semantic/preview",{method:"POST",body:data});
   if(!r.ok){let detail="HTTP "+r.status;try{detail=(await r.json()).detail||detail;}catch{}throw Error(detail);}
   const result=await r.json();
+  if(requestGeneration!==semanticGeneration)return;
   $("semanticStatus").textContent="候选段落 / Candidates: "+result.candidates.length+(result.shortlist_truncated?" · 长文档已截取候选范围 / shortlist limited":"");
   const holder=$("semanticResults");
   result.candidates.forEach(c=>{
@@ -115,7 +117,7 @@ $("semanticAnalyze").addEventListener("click",async()=>{
    const detail=document.createElement("pre");detail.textContent="第 "+c.page+" 页 · 相似度 "+c.similarity+" (非概率)\\n"+c.text;
    label.append(radio,document.createTextNode(" 选择此段落 / Select this passage"),detail);holder.append(label);
   });
- }catch(e){$("semanticStatus").textContent=e.message;}
+ }catch(e){if(requestGeneration===semanticGeneration)$("semanticStatus").textContent=e.message;}
  finally{$("semanticAnalyze").disabled=false;}
 });
 $("semanticDownload").addEventListener("click",async()=>{
