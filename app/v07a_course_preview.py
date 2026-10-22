@@ -38,6 +38,18 @@ def _file_url(prop: dict) -> str:
     return url
 
 
+async def _get_checked(client: httpx.AsyncClient, url: str, headers: dict, stage: str, **kwargs):
+    """Surface only a stage and HTTP status; never expose tokens or signed URLs."""
+    try:
+        response = await client.get(url, headers=headers, **kwargs)
+        response.raise_for_status()
+        return response
+    except httpx.HTTPStatusError as exc:
+        raise ValueError(f"{stage}: upstream HTTP {exc.response.status_code}") from None
+    except httpx.RequestError:
+        raise ValueError(f"{stage}: upstream connection failed") from None
+
+
 async def inspect_bound_course(candidate_index: int | None = None) -> dict | tuple[dict, bytes]:
     token = os.getenv("NOTION_INTEGRATION_TOKEN", "").strip()
     note_id = _clean_id(os.getenv("NOTION_TEST_NOTE_PAGE_ID", ""))
@@ -50,22 +62,18 @@ async def inspect_bound_course(candidate_index: int | None = None) -> dict | tup
         raise ValueError("Configured course and textbook do not match explicit course bindings")
     headers = {"Authorization": f"Bearer {token}", "Notion-Version": NOTION_VERSION}
     async with httpx.AsyncClient(timeout=25, follow_redirects=False) as client:
-        note_page = await client.get(f"https://api.notion.com/v1/pages/{note_id}", headers=headers)
-        note_page.raise_for_status()
+        note_page = await _get_checked(client, f"https://api.notion.com/v1/pages/{note_id}", headers, "notion_note")
         note_course = await resolve_course(note_page.json(), client, headers, bindings)
         if note_course != expected_course:
             raise ValueError("Note is not under the configured course root")
-        textbook = await client.get(f"https://api.notion.com/v1/pages/{textbook_id}", headers=headers)
-        textbook.raise_for_status()
+        textbook = await _get_checked(client, f"https://api.notion.com/v1/pages/{textbook_id}", headers, "notion_textbook")
         props = textbook.json().get("properties", {})
         title = _title(props.get("教材名称", {}))
         course = _select(props.get("所属课程", {}))
         if not title or course != expected_course:
             raise ValueError("Textbook title or course binding does not match")
         url = _file_url(props.get("原版PDF", {}))
-        note_blocks = await client.get(f"https://api.notion.com/v1/blocks/{note_id}/children",
-                                       params={"page_size": 100}, headers=headers)
-        note_blocks.raise_for_status()
+        note_blocks = await _get_checked(client, f"https://api.notion.com/v1/blocks/{note_id}/children", headers, "notion_note_blocks", params={"page_size": 100})
         body = note_blocks.json()
         if body.get("has_more"):
             raise ValueError("Note has more than 100 blocks; review incomplete")
@@ -77,7 +85,8 @@ async def inspect_bound_course(candidate_index: int | None = None) -> dict | tup
                                             "prod-files-secure.s3.us-west-2.amazonaws.com"}:
             raise ValueError("PDF host is not on the approved Notion file host list")
         async with client.stream("GET", url) as pdf_response:
-            pdf_response.raise_for_status()
+            if pdf_response.status_code >= 400:
+                raise ValueError(f"notion_pdf_download: upstream HTTP {pdf_response.status_code}")
             parts = []
             size = 0
             async for part in pdf_response.aiter_bytes():
