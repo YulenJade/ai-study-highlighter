@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: ai-study-highlighter-demo
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: DEMO_ACCESS_TOKEN
+        sync: false
