@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 
 from .notion_notes_readonly import _clean_id, extract_summary_blocks, NOTION_VERSION
 from .paragraph_matcher import match_best_paragraph
+from .v07a_note_sections import extract_matching_notes
 
 PDF_MAX_BYTES = 15 * 1024 * 1024
 
@@ -60,9 +61,7 @@ async def inspect_bound_course() -> dict:
         body = note_blocks.json()
         if body.get("has_more"):
             raise ValueError("Note has more than 100 blocks; review incomplete")
-        lines = extract_summary_blocks(body.get("results", []), limit=20)
-        if not lines:
-            raise ValueError("No readable summary blocks; AI notes may be nested")
+        notes_text = extract_matching_notes(body.get("results", []))
         # The URL is a short-lived Notion-signed URL from a trusted Notion API
         # response. Never accept arbitrary client-supplied URLs.
         if urlparse(url).hostname not in {"secure.notion-static.com",
@@ -81,14 +80,14 @@ async def inspect_bound_course() -> dict:
             pdf = b"".join(parts)
     if not pdf.startswith(b"%PDF-"):
         raise ValueError("Not a PDF file")
-    summary, _ = match_best_paragraph(pdf, "\n".join(lines))
+    summary, _ = match_best_paragraph(pdf, notes_text)
     return {
         "note_page_id": note_id,
         "textbook_page_id": textbook_id,
         "course": course,
         "textbook": title,
         "note_last_edited_time": note_page.json().get("last_edited_time"),
-        "note_summary_lines": len(lines),
+        "note_summary_lines": len(notes_text.splitlines()),
         "pdf_page_count": summary["page_count"],
         "candidates": summary["candidates"],
         "matching_method": summary["matching_method"],
