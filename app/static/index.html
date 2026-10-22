@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>AI Study Highlighter · 教材划重点</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#183044;background:#f4f7fb}
+*{box-sizing:border-box}body{margin:0}main{max-width:1060px;margin:auto;padding:32px 18px 70px}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:24px}
+h1{font-size:clamp(26px,4vw,38px);margin:8px 0}h2{font-size:20px;margin:0 0 14px}
+p{line-height:1.6}.muted{color:#64748b}.small{font-size:13px}
+.card{background:white;border:1px solid #dce5ee;border-radius:18px;padding:22px;box-shadow:0 6px 24px #0f274408}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}.stack{display:grid;gap:20px}
+label{display:block;font-weight:650;margin:12px 0 8px}
+input[type=file],textarea,select{width:100%;font:inherit;border:1px solid #bccbd9;border-radius:12px;padding:13px;background:white}
+textarea{min-height:185px;resize:vertical}button{font:inherit;font-weight:650;border:0;border-radius:12px;padding:12px 18px;cursor:pointer;background:#1854d2;color:white}
+button.secondary{background:#e9effb;color:#183b79}button:disabled{opacity:.5;cursor:not-allowed}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:15px}.pill{display:inline-block;border-radius:30px;padding:5px 11px;background:#e9effb;color:#1854d2;font-size:13px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin:12px 0}.dot{width:12px;height:12px;border-radius:50%;display:inline-block;margin-right:5px}
+.key{background:#ffdb51}.definition{background:#66d18a}.extra{background:#72adff}
+#status{min-height:24px}#status.error{color:#b42318}#status.ok{color:#147d50}
+.stats{display:flex;gap:16px;flex-wrap:wrap}.stat{background:#f0f5ff;border-radius:12px;padding:12px 16px}
+.results{list-style:none;padding:0;margin:0;max-height:420px;overflow:auto}.results li{padding:13px 0;border-bottom:1px solid #e5ebf3;overflow-wrap:anywhere}
+.tag{display:inline-block;padding:3px 9px;border-radius:7px;font-size:12px;margin-right:8px}
+#pdfPreview{width:100%;height:520px;border:1px solid #dce5ee;border-radius:12px;background:#edf1f5}
+[hidden]{display:none!important}@media(max-width:760px){.grid{grid-template-columns:1fr}main{padding-top:18px}#pdfPreview{height:440px}}
+</style>
+</head>
+<body>
+<main>
+<header><span class="pill">V0.3 · Local prototype</span><select id="language" aria-label="Language" style="width:auto"><option value="zh">中文</option><option value="en">English</option></select></header>
+<h1 data-i18n="title">AI 教材划重点</h1>
+<p class="muted" data-i18n="subtitle">上传可提取文字的教材 PDF，输入课堂笔记，预览匹配页码并下载彩色高亮副本。</p>
+<div class="grid">
+<section class="card">
+<h2 data-i18n="inputTitle">开始处理</h2>
+<label for="pdf" data-i18n="upload">教材 PDF（最大 15 MB）</label>
+<input id="pdf" type="file" accept=".pdf,application/pdf">
+<label for="notes" data-i18n="notesLabel">课堂笔记（每行一个原文短语）</label>
+<textarea id="notes" maxlength="10000" placeholder="[重点] 光合作用&#10;[定义] 叶绿素&#10;[补充] 呼吸作用"></textarea>
+<div class="legend" aria-label="Color legend"><span><i class="dot key"></i><span data-i18n="key">重点</span></span><span><i class="dot definition"></i><span data-i18n="definition">定义</span></span><span><i class="dot extra"></i><span data-i18n="extra">补充</span></span></div>
+<div class="actions"><button id="analyze" data-i18n="analyze">分析并预览</button><button id="download" class="secondary" disabled data-i18n="download">下载高亮 PDF</button></div>
+<p id="status" role="status" aria-live="polite"></p>
+<p class="muted small" data-i18n="privacy">本地开发版：文件提交至当前运行的后端进行处理。请勿在公开服务器上传私密教材。</p>
+</section>
+<section class="stack">
+<div class="card">
+<h2 data-i18n="resultsTitle">匹配结果</h2>
+<div id="empty" class="muted" data-i18n="empty">上传 PDF 并点击分析，即可查看结果。</div>
+<div id="summary" hidden><div class="stats"><div class="stat"><strong id="matchCount">0</strong> <span data-i18n="matches">处匹配</span></div><div class="stat"><strong id="pageCount">0</strong> <span data-i18n="pages">页</span></div></div><p id="pageList" class="muted small"></p><p id="unmatched" class="muted small"></p><ul class="results" id="matchesList"></ul></div>
+</div>
+<div class="card">
+<h2 data-i18n="previewTitle">PDF 预览</h2>
+<p class="muted small" data-i18n="previewHint">分析完成后点击下载，浏览器将展示生成的高亮 PDF 预览。部分移动浏览器可能只提供打开或下载。</p>
+<iframe id="pdfPreview" title="Highlighted PDF preview" hidden></iframe>
+<p id="pdfEmpty" class="muted" data-i18n="pdfEmpty">暂无高亮 PDF。</p>
+</div>
+</section>
+</div>
+</main>
+<script src="/static/app.js" defer></script>
+</body>
+</html>
