@@ -91,3 +91,43 @@ $("batchPublish").addEventListener("click",async()=>{
   $("batchConfirm").checked=false;document.querySelectorAll(".batchChoice").forEach(c=>c.checked=false);
  }catch(e){$("batchStatus").textContent="Notion: "+e.message;}finally{updateBatch();}
 });
+
+let semanticSelection=null;
+function resetSemantic(){semanticSelection=null;$("semanticDownload").disabled=true;$("semanticResults").replaceChildren();$("semanticStatus").textContent="";}
+$("pdf").addEventListener("change",resetSemantic);
+$("notes").addEventListener("input",resetSemantic);
+$("semanticConsent").addEventListener("change",resetSemantic);
+$("semanticAnalyze").addEventListener("click",async()=>{
+ if(!validate()){$("semanticStatus").textContent=$("error").textContent;return;}
+ if(!$("semanticConsent").checked){$("semanticStatus").textContent="请先同意发送教材文本 / Consent required";return;}
+ $("semanticAnalyze").disabled=true;resetSemantic();$("semanticStatus").textContent=t("working");
+ try{
+  const data=payload();data.append("consent","true");
+  const r=await fetch("/semantic/preview",{method:"POST",body:data});
+  if(!r.ok){let detail="HTTP "+r.status;try{detail=(await r.json()).detail||detail;}catch{}throw Error(detail);}
+  const result=await r.json();
+  $("semanticStatus").textContent="候选段落 / Candidates: "+result.candidates.length+(result.shortlist_truncated?" · 长文档已截取候选范围 / shortlist limited":"");
+  const holder=$("semanticResults");
+  result.candidates.forEach(c=>{
+   const label=document.createElement("label");label.style.cssText="display:block;padding:12px;margin:10px 0;border:1px solid #dae2eb;border-radius:10px;font-weight:normal";
+   const radio=document.createElement("input");radio.type="radio";radio.name="semanticCandidate";radio.value=String(c.candidate_id);radio.style.width="auto";
+   radio.addEventListener("change",()=>{semanticSelection=c.candidate_id;$("semanticDownload").disabled=false;});
+   const detail=document.createElement("pre");detail.textContent="第 "+c.page+" 页 · 相似度 "+c.similarity+" (非概率)\\n"+c.text;
+   label.append(radio,document.createTextNode(" 选择此段落 / Select this passage"),detail);holder.append(label);
+  });
+ }catch(e){$("semanticStatus").textContent=e.message;}
+ finally{$("semanticAnalyze").disabled=false;}
+});
+$("semanticDownload").addEventListener("click",async()=>{
+ if(semanticSelection===null||!$("semanticConsent").checked||!validate())return;
+ $("semanticDownload").disabled=true;$("semanticStatus").textContent=t("working");
+ try{
+  const data=payload();data.append("consent","true");data.append("candidate_id",String(semanticSelection));
+  const r=await fetch("/semantic/highlight",{method:"POST",body:data});
+  if(!r.ok){let detail="HTTP "+r.status;try{detail=(await r.json()).detail||detail;}catch{}throw Error(detail);}
+  const link=URL.createObjectURL(await r.blob());const a=document.createElement("a");a.href=link;a.download="semantic-selected.pdf";a.click();
+  if(url)URL.revokeObjectURL(url);url=link;$("preview").src=url;$("previewCard").hidden=false;
+  $("semanticStatus").textContent="已生成 / Ready";
+ }catch(e){$("semanticStatus").textContent=e.message;}
+ finally{$("semanticDownload").disabled=false;}
+});
