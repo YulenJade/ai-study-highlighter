@@ -1,0 +1,10 @@
+__pycache__/
+.pytest_cache/
+.venv/
+.env
+.env.*
+!.env.example
+*.pdf
+*.zip
+*.sqlite3
+.DS_Store
